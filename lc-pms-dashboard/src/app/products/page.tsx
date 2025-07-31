@@ -13,18 +13,21 @@ interface Product {
   stock?: number;
 }
 
+type ModalType = 'view' | 'edit' | 'add';
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
   const [statusFilter, setStatusFilter] = useState('All Status');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  
   // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState<'view' | 'edit' | 'add'>('view');
+  const [modalType, setModalType] = useState<ModalType>('view');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -39,7 +42,7 @@ export default function ProductsPage() {
 
         const data = await response.json();
         
-        // If you need to fetch inventory data to get stock levels, you can do it here
+        // Fetch inventory data to get stock levels
         const inventoryResponse = await fetch('/api/inventory');
         let inventoryData = [];
         if (inventoryResponse.ok) {
@@ -101,6 +104,7 @@ export default function ProductsPage() {
 
   const categories = ['All Categories', ...Array.from(new Set(products.map(p => p.category)))];
 
+  // Modal handlers
   const handleViewProduct = (product: Product) => {
     setSelectedProduct(product);
     setModalType('view');
@@ -136,39 +140,55 @@ export default function ProductsPage() {
           body: JSON.stringify(productData),
         });
 
-        if (response.ok) {
-          const newProduct = await response.json();
-          setProducts([...products, { ...newProduct, stock: 0 }]);
-          alert('Product added successfully!');
-        } else {
+        if (!response.ok) {
           throw new Error('Failed to add product');
         }
+
+        const result = await response.json();
+        
+        // Add the new product to local state
+        const newProduct: Product = {
+          productId: result.productId,
+          name: productData.name || '',
+          description: productData.description || '',
+          price: productData.price || 0,
+          category: productData.category || '',
+          requiresPrescription: productData.requiresPrescription || false,
+          stock: 0
+        };
+        setProducts([...products, newProduct]);
+        alert('Product added successfully!');
+        
       } else if (modalType === 'edit' && selectedProduct) {
         // Update existing product via API
-        const response = await fetch(`/api/products/${selectedProduct.productId}`, {
+        const response = await fetch('/api/products', {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(productData),
+          body: JSON.stringify({
+            productId: selectedProduct.productId,
+            ...productData,
+          }),
         });
 
-        if (response.ok) {
-          const updatedProducts = products.map(p => 
-            p.productId === selectedProduct.productId 
-              ? { ...p, ...productData }
-              : p
-          );
-          setProducts(updatedProducts);
-          alert('Product updated successfully!');
-        } else {
+        if (!response.ok) {
           throw new Error('Failed to update product');
         }
+
+        // Update the product in local state
+        const updatedProducts = products.map(p => 
+          p.productId === selectedProduct.productId 
+            ? { ...p, ...productData }
+            : p
+        );
+        setProducts(updatedProducts);
+        alert('Product updated successfully!');
       }
       closeModal();
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Error saving product. Please try again.');
+      alert('Failed to save product. Please try again.');
     }
   };
 
