@@ -1,6 +1,5 @@
 "use client"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -8,54 +7,123 @@ import { Minus, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 
 interface CartItem {
-  id: string
+  cartId: number
+  customerId: number
+  productId: number
   name: string
   price: number
   quantity: number
-  image: string
-  prescription?: boolean
+  description: string
+  requiresPrescription: boolean
+}
+
+// Type guard for error messages
+function isErrorWithMessage(error: unknown): error is { message: string } {
+  return typeof error === 'object' && error !== null && 'message' in error;
+}
+
+// Helper function to get error message
+function getErrorMessage(error: unknown): string {
+  if (isErrorWithMessage(error)) return error.message;
+  return 'An unknown error occurred';
 }
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      id: "1",
-      name: "Paracetamol 500mg",
-      price: 5.99,
-      quantity: 2,
-      image: "/placeholder.svg?height=80&width=80",
-      prescription: false,
-    },
-    {
-      id: "2",
-      name: "Amoxicillin 250mg",
-      price: 12.5,
-      quantity: 1,
-      image: "/placeholder.svg?height=80&width=80",
-      prescription: true,
-    },
-    {
-      id: "3",
-      name: "Vitamin D3",
-      price: 8.75,
-      quantity: 3,
-      image: "/placeholder.svg?height=80&width=80",
-      prescription: false,
-    },
-  ])
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [customerId, setCustomerId] = useState<number | null>(null)
 
-  const updateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity < 1) return
-    setCartItems((items) => items.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item)))
+  useEffect(() => {
+    const storedId = localStorage.getItem("customerId")
+    if (storedId) {
+      setCustomerId(Number(storedId))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (customerId) fetchCartItems(customerId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerId])
+
+  const fetchCartItems = async (cid: number) => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/cart?customerId=${cid}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch cart items')
+      }
+      const data = await response.json()
+      setCartItems(data.cartItems || [])
+    } catch (error: unknown) {
+      console.error('Error fetching cart items:', error)
+      alert(getErrorMessage(error))
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const removeItem = (id: string) => {
-    setCartItems((items) => items.filter((item) => item.id !== id))
+  const updateQuantity = async (cartId: number, productId: number, newQuantity: number) => {
+    if (newQuantity < 1) return
+    
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId,
+          productId,
+          quantity: newQuantity
+        })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update quantity')
+      }
+      
+      setCartItems((items) => 
+        items.map((item) => 
+          item.cartId === cartId ? { ...item, quantity: newQuantity } : item
+        )
+      )
+    } catch (error: unknown) {
+      console.error('Error updating quantity:', error)
+      alert(getErrorMessage(error))
+    }
+  }
+
+  const removeItem = async (cartId: number) => {
+    try {
+      const response = await fetch(`/api/cart?cartId=${cartId}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to remove item')
+      }
+      
+      setCartItems((items) => items.filter((item) => item.cartId !== cartId))
+    } catch (error: unknown) {
+      console.error('Error removing item:', error)
+      alert(getErrorMessage(error))
+    }
   }
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const tax = subtotal * 0.1
   const total = subtotal + tax
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">Loading cart...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -68,48 +136,64 @@ export default function CartPage() {
               <CardTitle>Cart Items ({cartItems.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {cartItems.map((item) => (
-                <div key={item.id} className="flex items-center space-x-4 p-4 border rounded-lg">
-                  <img
-                    src={item.image || "/placeholder.svg"}
-                    alt={item.name}
-                    className="w-20 h-20 object-cover rounded"
-                  />
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{item.name}</h3>
-                    {item.prescription && (
-                      <span className="text-sm text-red-600 font-medium">Prescription Required</span>
-                    )}
-                    <p className="text-gray-600">${item.price.toFixed(2)}</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, item.quantity - 1)}>
-                      <Minus className="w-4 h-4" />
-                    </Button>
-                    <Input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) => updateQuantity(item.id, Number.parseInt(e.target.value) || 1)}
-                      className="w-16 text-center"
-                      min="1"
-                    />
-                    <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, item.quantity + 1)}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeItem(item.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+              {cartItems.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">Your cart is empty</p>
+                  <Link href="/products">
+                    <Button>Browse Products</Button>
+                  </Link>
                 </div>
-              ))}
+              ) : (
+                cartItems.map((item) => (
+                  <div key={item.cartId} className="flex items-center space-x-4 p-4 border rounded-lg">
+                    <div className="w-20 h-20 bg-gray-200 rounded flex items-center justify-center">
+                      <span className="text-gray-500 text-xs">No Image</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{item.name}</h3>
+                      {item.requiresPrescription && (
+                        <span className="text-sm text-red-600 font-medium">Prescription Required</span>
+                      )}
+                      <p className="text-gray-600 text-sm">{item.description}</p>
+                      <p className="text-gray-600">${Number(item.price).toFixed(2)}</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => updateQuantity(item.cartId, item.productId, item.quantity - 1)}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <Input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => updateQuantity(item.cartId, item.productId, Number(e.target.value) || 1)}
+                        className="w-16 text-center"
+                        min="1"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => updateQuantity(item.cartId, item.productId, item.quantity + 1)}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">${(Number(item.price) * item.quantity).toFixed(2)}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeItem(item.cartId)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>
@@ -125,7 +209,7 @@ export default function CartPage() {
                 <span>${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tax:</span>
+                <span>Tax (10%):</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
               <div className="border-t pt-4">
@@ -135,8 +219,15 @@ export default function CartPage() {
                 </div>
               </div>
               <Link href="/purchase" className="w-full">
-                <Button className="w-full" size="lg">
-                  Proceed to Checkout
+                <Button 
+                  className="w-full" 
+                  size="lg"
+                  disabled={cartItems.length === 0 || 
+                    cartItems.some(item => item.requiresPrescription)}
+                >
+                  {cartItems.some(item => item.requiresPrescription) 
+                    ? "Complete Prescription First" 
+                    : "Proceed to Checkout"}
                 </Button>
               </Link>
             </CardContent>

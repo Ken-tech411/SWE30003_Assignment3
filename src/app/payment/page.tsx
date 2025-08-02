@@ -1,19 +1,50 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircle, CreditCard, Clock, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { useSearchParams } from 'next/navigation'
+
+function getDisplayMethod(method: string) {
+  switch (method) {
+    case "CreditCard":
+      return "Credit/Debit Card"
+    case "Cash":
+      return "Cash on Delivery"
+    default:
+      return method
+  }
+}
 
 export default function PaymentPage() {
   const [paymentStatus, setPaymentStatus] = useState<"processing" | "success" | "failed">("processing")
+  const [paymentData, setPaymentData] = useState<any>(null)
+  const searchParams = useSearchParams()
 
-  const handlePayment = () => {
-    // Simulate payment processing
-    setTimeout(() => {
-      setPaymentStatus(Math.random() > 0.1 ? "success" : "failed")
-    }, 2000)
+  useEffect(() => {
+    const orderIdParam = searchParams.get('orderId')
+    if (orderIdParam) {
+      fetchPayment(orderIdParam)
+    } else {
+      setPaymentStatus("failed")
+    }
+  }, [])
+
+  const fetchPayment = async (orderId: string) => {
+    try {
+      const response = await fetch(`/api/payments?orderId=${orderId}`)
+      const result = await response.json()
+      if (result && result.payment) {
+        setPaymentData(result.payment)
+        setPaymentStatus("success")
+      } else {
+        setPaymentStatus("failed")
+      }
+    } catch (error) {
+      setPaymentStatus("failed")
+    }
   }
 
   if (paymentStatus === "processing") {
@@ -35,7 +66,7 @@ export default function PaymentPage() {
     )
   }
 
-  if (paymentStatus === "success") {
+  if (paymentStatus === "success" && paymentData) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto">
@@ -49,21 +80,29 @@ export default function PaymentPage() {
                 <div className="text-sm space-y-2">
                   <div className="flex justify-between">
                     <span>Order ID:</span>
-                    <span className="font-mono">#ORD-2024-001</span>
+                    <span className="font-mono">#{paymentData?.orderId}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Name:</span>
+                    <span>{paymentData?.customerName}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Amount:</span>
-                    <span className="font-semibold">$32.24</span>
+                    <span className="font-semibold">${Number(paymentData?.amount).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Payment Method:</span>
-                    <span>Credit Card ****3456</span>
+                    <span>{getDisplayMethod(paymentData?.method)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Payment ID:</span>
+                    <span className="font-mono">#{paymentData?.paymentId}</span>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <Link href="/delivery/track" className="w-full">
+                <Link href={`/delivery/track?orderId=${paymentData?.orderId}`} className="w-full">
                   <Button className="w-full">Track Your Order</Button>
                 </Link>
                 <Link href="/" className="w-full">
@@ -87,12 +126,7 @@ export default function PaymentPage() {
             <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-500" />
             <h2 className="text-2xl font-bold mb-2 text-red-700">Payment Failed</h2>
             <p className="text-gray-600 mb-6">There was an issue processing your payment. Please try again.</p>
-
             <div className="space-y-3">
-              <Button onClick={handlePayment} className="w-full">
-                <CreditCard className="w-4 h-4 mr-2" />
-                Try Again
-              </Button>
               <Link href="/purchase" className="w-full">
                 <Button variant="outline" className="w-full bg-transparent">
                   Back to Checkout

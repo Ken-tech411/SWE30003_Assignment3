@@ -1,87 +1,193 @@
 "use client"
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { RefreshCw, Package, AlertCircle, CheckCircle, Clock, User } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Clock, CheckCircle, AlertCircle, Package, RefreshCw } from "lucide-react"
 
-interface ReturnRequest {
-  id: string
-  orderId: string
-  customerName: string
-  productName: string
+interface ReturnItem {
+  returnId: number
+  orderId: number
+  productId: number
   reason: string
-  status: "pending" | "approved" | "rejected" | "completed"
-  requestDate: string
+  description: string
+  status: string
   refundAmount: number
+  submittedDate: string
+  customerName?: string
+  productName?: string
+  customerId?: number
 }
 
 export default function ReturnsPage() {
   const [activeTab, setActiveTab] = useState("customer")
   const [returnReason, setReturnReason] = useState("")
   const [returnDescription, setReturnDescription] = useState("")
+  const [orderId, setOrderId] = useState("")
+  const [productId, setProductId] = useState<number | null>(null)
+  const [orderProducts, setOrderProducts] = useState<{ productId: number, name: string, unitPrice: number, quantity: number }[]>([])
+  const [customerReturns, setCustomerReturns] = useState<ReturnItem[]>([])
+  const [staffReturns, setStaffReturns] = useState<ReturnItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [customerId, setCustomerId] = useState<number | null>(null)
 
-  const customerReturns: ReturnRequest[] = [
-    {
-      id: "RET-001",
-      orderId: "ORD-2024-001",
-      customerName: "John Doe",
-      productName: "Paracetamol 500mg",
-      reason: "Damaged product",
-      status: "pending",
-      requestDate: "2024-08-28",
-      refundAmount: 5.99,
-    },
-    {
-      id: "RET-002",
-      orderId: "ORD-2024-002",
-      customerName: "John Doe",
-      productName: "Vitamin D3",
-      reason: "Wrong product received",
-      status: "approved",
-      requestDate: "2024-08-25",
-      refundAmount: 8.75,
-    },
-  ]
+  // Modal state for View Details
+  const [viewDetailOpen, setViewDetailOpen] = useState(false)
+  const [selectedReturn, setSelectedReturn] = useState<ReturnItem | null>(null)
 
-  const staffReturns: ReturnRequest[] = [
-    {
-      id: "RET-003",
-      orderId: "ORD-2024-003",
-      customerName: "Jane Smith",
-      productName: "Amoxicillin 250mg",
-      reason: "Expired product",
-      status: "pending",
-      requestDate: "2024-08-29",
-      refundAmount: 12.5,
-    },
-    {
-      id: "RET-004",
-      orderId: "ORD-2024-004",
-      customerName: "Mike Johnson",
-      productName: "Ibuprofen 400mg",
-      reason: "Allergic reaction",
-      status: "approved",
-      requestDate: "2024-08-27",
-      refundAmount: 7.25,
-    },
-    {
-      id: "RET-005",
-      orderId: "ORD-2024-005",
-      customerName: "Sarah Wilson",
-      productName: "Cough Syrup",
-      reason: "Not as described",
-      status: "rejected",
-      requestDate: "2024-08-26",
-      refundAmount: 15.99,
-    },
-  ]
+  // Staff filters and debounce
+  const [staffStatusFilters, setStaffStatusFilters] = useState<string[]>([])
+  const [staffOrderId, setStaffOrderId] = useState("")
+  const [staffCustomerId, setStaffCustomerId] = useState("")
+  const [debouncedStaffOrderId, setDebouncedStaffOrderId] = useState("")
+  const [debouncedStaffCustomerId, setDebouncedStaffCustomerId] = useState("")
+
+  // Debounce for staff filters
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedStaffOrderId(staffOrderId), 400)
+    return () => clearTimeout(handler)
+  }, [staffOrderId])
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedStaffCustomerId(staffCustomerId), 400)
+    return () => clearTimeout(handler)
+  }, [staffCustomerId])
+
+  // Load customerId from localStorage on mount
+  useEffect(() => {
+    const storedId = localStorage.getItem("customerId")
+    if (storedId) setCustomerId(Number(storedId))
+  }, [])
+
+  // Fetch order products when orderId changes
+  useEffect(() => {
+    if (orderId) {
+      fetch(`/api/orders/${orderId}/items`)
+        .then(res => res.json())
+        .then(data => setOrderProducts(data.items || []))
+    } else {
+      setOrderProducts([])
+      setProductId(null)
+    }
+  }, [orderId])
+
+  // Fetch returns when tab or customerId changes
+  useEffect(() => {
+    if (activeTab === "customer" && customerId) {
+      fetchCustomerReturns()
+    } else if (activeTab === "staff") {
+      fetchAllReturns()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, customerId])
+
+  // Refetch staff returns on filter change
+  useEffect(() => {
+    if (activeTab === "staff") {
+      fetchAllReturns()
+    }
+    // eslint-disable-next-line
+  }, [staffStatusFilters, debouncedStaffOrderId, debouncedStaffCustomerId])
+
+  const fetchCustomerReturns = async () => {
+    if (!customerId) return
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/returns?customerId=${customerId}`)
+      const data = await response.json()
+      setCustomerReturns(data.returns || [])
+    } catch (error) {
+      console.error('Error fetching customer returns:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAllReturns = async () => {
+    setLoading(true)
+    const statusParams = staffStatusFilters.map(s => `status=${encodeURIComponent(s)}`).join('&')
+    const orderIdParam = debouncedStaffOrderId ? `&orderId=${encodeURIComponent(debouncedStaffOrderId)}` : ''
+    const customerIdParam = debouncedStaffCustomerId ? `&customerId=${encodeURIComponent(debouncedStaffCustomerId)}` : ''
+    const query = [statusParams, orderIdParam, customerIdParam].filter(Boolean).join('&')
+    try {
+      const response = await fetch(`/api/returns?${query}`)
+      const data = await response.json()
+      setStaffReturns(data.returns || [])
+    } catch (error) {
+      console.error('Error fetching all returns:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReturnSubmit = async () => {
+    if (!orderId || !productId || !returnReason) {
+      alert("Please fill in all required fields")
+      return
+    }
+
+    try {
+      const response = await fetch('/api/returns', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: parseInt(orderId),
+          productId,
+          reason: returnReason,
+          description: returnDescription
+        })
+      })
+
+      if (response.ok) {
+        alert("Return request submitted successfully!")
+        setOrderId("")
+        setProductId(null)
+        setReturnReason("")
+        setReturnDescription("")
+        setOrderProducts([])
+        fetchCustomerReturns()
+      } else {
+        alert("Failed to submit return request")
+      }
+    } catch (error) {
+      console.error('Error submitting return request:', error)
+      alert("Error submitting return request")
+    }
+  }
+
+  const updateReturnStatus = async (returnId: number, newStatus: string) => {
+    try {
+      const response = await fetch('/api/returns', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          returnId,
+          status: newStatus,
+          processedDate: new Date().toISOString()
+        })
+      })
+
+      if (response.ok) {
+        // Refresh the returns list
+        if (activeTab === "customer") {
+          fetchCustomerReturns()
+        } else {
+          fetchAllReturns()
+        }
+      }
+    } catch (error) {
+      console.error('Error updating return status:', error)
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -113,17 +219,12 @@ export default function ReturnsPage() {
     }
   }
 
-  const handleReturnSubmit = () => {
-    // In a real app, this would submit the return request
-    console.log("Return request submitted:", { returnReason, returnDescription })
-    alert("Return request submitted successfully!")
-    setReturnReason("")
-    setReturnDescription("")
-  }
-
-  const updateReturnStatus = (returnId: string, newStatus: string) => {
-    // In a real app, this would update the database
-    console.log(`Updating return ${returnId} to ${newStatus}`)
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">Loading returns...</div>
+      </div>
+    )
   }
 
   return (
@@ -136,32 +237,58 @@ export default function ReturnsPage() {
           <TabsTrigger value="staff">Staff View</TabsTrigger>
         </TabsList>
 
+        {/* Customer View */}
         <TabsContent value="customer" className="space-y-6">
-          <Card>
+          <Card className="overflow-visible">
             <CardHeader>
               <CardTitle>Request Return/Exchange</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 overflow-visible">
               <div>
                 <Label htmlFor="orderId">Order ID</Label>
-                <Input id="orderId" placeholder="Enter your order ID (e.g., ORD-2024-001)" />
+                <Input
+                  id="orderId"
+                  placeholder="Enter your order ID (e.g., 123)"
+                  value={orderId}
+                  onChange={(e) => setOrderId(e.target.value)}
+                />
               </div>
+
+              {orderProducts.length > 0 && (
+                <div>
+                  <Label htmlFor="productId">Product</Label>
+                  <select
+                    id="productId"
+                    value={productId ?? ""}
+                    onChange={e => setProductId(Number(e.target.value))}
+                    className="block w-full border rounded px-3 py-2"
+                  >
+                    <option value="">Select a product</option>
+                    {orderProducts.map(product => (
+                      <option key={product.productId} value={product.productId}>
+                        {product.name} (${Number(product.unitPrice).toFixed(2)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="reason">Reason for Return</Label>
-                <Select value={returnReason} onValueChange={setReturnReason}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a reason" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="damaged">Damaged product</SelectItem>
-                    <SelectItem value="wrong_product">Wrong product received</SelectItem>
-                    <SelectItem value="expired">Expired product</SelectItem>
-                    <SelectItem value="not_as_described">Not as described</SelectItem>
-                    <SelectItem value="allergic_reaction">Allergic reaction</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                <select
+                  id="reason"
+                  value={returnReason}
+                  onChange={e => setReturnReason(e.target.value)}
+                  className="block w-full border rounded px-3 py-2"
+                >
+                  <option value="">Select a reason</option>
+                  <option value="damaged">Damaged product</option>
+                  <option value="wrong_product">Wrong product received</option>
+                  <option value="expired">Expired product</option>
+                  <option value="not_as_described">Not as described</option>
+                  <option value="allergic_reaction">Allergic reaction</option>
+                  <option value="other">Other</option>
+                </select>
               </div>
 
               <div>
@@ -184,167 +311,319 @@ export default function ReturnsPage() {
 
           <div className="grid gap-4">
             <h2 className="text-xl font-semibold">Your Return Requests</h2>
-            {customerReturns.map((returnReq) => (
-              <Card key={returnReq.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      {getStatusIcon(returnReq.status)}
-                      <div>
-                        <h3 className="font-semibold">{returnReq.productName}</h3>
-                        <p className="text-sm text-gray-600">Order {returnReq.orderId}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge className={getStatusColor(returnReq.status)}>{returnReq.status.toUpperCase()}</Badge>
-                      <p className="text-sm text-gray-600 mt-1">${returnReq.refundAmount}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-sm">
-                      <strong>Reason:</strong> {returnReq.reason}
-                    </p>
-                    <p className="text-sm">
-                      <strong>Request Date:</strong> {returnReq.requestDate}
-                    </p>
-                  </div>
-
-                  {returnReq.status === "approved" && (
-                    <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                      <p className="text-sm text-green-800">
-                        Your return has been approved. Please package the item and use the provided return label.
-                      </p>
-                    </div>
-                  )}
-
-                  {returnReq.status === "rejected" && (
-                    <div className="mt-4 p-3 bg-red-50 rounded-lg">
-                      <p className="text-sm text-red-800">
-                        Your return request has been rejected. Please contact customer service for more information.
-                      </p>
-                    </div>
-                  )}
+            {customerReturns.length === 0 ? (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <p className="text-gray-500">No return requests found</p>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              customerReturns.map((item) => (
+                <Card key={item.returnId} className="border rounded-lg mb-4">
+                  <CardContent className="p-6">
+                    <div className="flex items-center mb-2">
+                      {getStatusIcon(item.status)}
+                      <h3 className="font-semibold ml-2">{item.productName || "Product"}</h3>
+                      <span className="ml-auto">
+                        <Badge className={getStatusColor(item.status)}>
+                          {item.status.toUpperCase()}
+                        </Badge>
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">
+                      Order #{item.orderId}
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold">Reason:</span> {item.reason}
+                    </div>
+                    {item.description && (
+                      <div className="mb-2">
+                        <span className="font-semibold">Description:</span> {item.description}
+                      </div>
+                    )}
+                    <div className="mb-2">
+                      <span className="font-semibold">Request Date:</span> {new Date(item.submittedDate).toLocaleDateString()}
+                    </div>
+                    <div className="text-right font-medium text-blue-700 mb-2">
+                      ${Number(item.refundAmount).toFixed(2)}
+                    </div>
+                    {/* Notification */}
+                    {item.status === "approved" && (
+                      <div className="mt-4 p-3 rounded bg-green-50 text-green-800 text-sm">
+                        Your return has been approved. Please package the item and use the provided return label.
+                      </div>
+                    )}
+                    {item.status === "rejected" && (
+                      <div className="mt-4 p-3 rounded bg-red-50 text-red-800 text-sm">
+                        Your return request has been rejected. Please contact customer service for more information.
+                      </div>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedReturn(item);
+                        setViewDetailOpen(true);
+                      }}
+                    >
+                      View Details
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
 
+        {/* Staff View */}
         <TabsContent value="staff" className="space-y-6">
+          {/* --- Staff Filters --- */}
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex flex-wrap gap-8 items-center">
+                {/* Status Filter */}
+                <div>
+                  <div className="font-semibold mb-2">Filter by Status:</div>
+                  <div className="flex gap-3 flex-wrap">
+                    {["pending", "approved", "rejected", "completed"].map(status => (
+                      <label key={status} className="flex items-center gap-1 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={staffStatusFilters.includes(status)}
+                          onChange={e => {
+                            setStaffStatusFilters(prev =>
+                              e.target.checked
+                                ? [...prev, status]
+                                : prev.filter(s => s !== status)
+                            );
+                          }}
+                        />
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {/* Order ID Filter */}
+                <div>
+                  <div className="font-semibold mb-2">Filter by Order ID:</div>
+                  <Input
+                    type="number"
+                    placeholder="Order ID"
+                    value={staffOrderId}
+                    onChange={e => setStaffOrderId(e.target.value)}
+                  />
+                </div>
+                {/* Customer ID Filter */}
+                <div>
+                  <div className="font-semibold mb-2">Filter by Customer ID:</div>
+                  <Input
+                    type="number"
+                    placeholder="Customer ID"
+                    value={staffCustomerId}
+                    onChange={e => setStaffCustomerId(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          {/* --- End Staff Filters --- */}
+
+          {/* --- Stats Cards --- */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold">{staffReturns.filter((r) => r.status === "pending").length}</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-yellow-500" />
+              <CardContent className="p-6 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Pending</p>
+                  <p className="text-2xl font-bold">{staffReturns.filter(r => r.status === "pending").length}</p>
                 </div>
+                <Clock className="w-8 h-8 text-yellow-500" />
               </CardContent>
             </Card>
-
             <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Approved</p>
-                    <p className="text-2xl font-bold">{staffReturns.filter((r) => r.status === "approved").length}</p>
-                  </div>
-                  <CheckCircle className="w-8 h-8 text-green-500" />
+              <CardContent className="p-6 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Approved</p>
+                  <p className="text-2xl font-bold">{staffReturns.filter(r => r.status === "approved").length}</p>
                 </div>
+                <CheckCircle className="w-8 h-8 text-green-500" />
               </CardContent>
             </Card>
-
             <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Rejected</p>
-                    <p className="text-2xl font-bold">{staffReturns.filter((r) => r.status === "rejected").length}</p>
-                  </div>
-                  <AlertCircle className="w-8 h-8 text-red-500" />
+              <CardContent className="p-6 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Rejected</p>
+                  <p className="text-2xl font-bold">{staffReturns.filter(r => r.status === "rejected").length}</p>
                 </div>
+                <AlertCircle className="w-8 h-8 text-red-500" />
               </CardContent>
             </Card>
-
             <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Refunds</p>
-                    <p className="text-2xl font-bold">
-                      ${staffReturns.reduce((sum, r) => sum + r.refundAmount, 0).toFixed(2)}
-                    </p>
-                  </div>
-                  <RefreshCw className="w-8 h-8 text-blue-500" />
+              <CardContent className="p-6 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Refunds</p>
+                  <p className="text-2xl font-bold">
+                    ${staffReturns.reduce((sum, r) => sum + Number(r.refundAmount ?? 0), 0).toFixed(2)}
+                  </p>
                 </div>
+                <RefreshCw className="w-8 h-8 text-blue-500" />
               </CardContent>
             </Card>
           </div>
+          {/* --- End Stats Cards --- */}
 
+          {/* --- All Returns List --- */}
           <div className="grid gap-4">
-            <h2 className="text-xl font-semibold">All Return Requests</h2>
-            {staffReturns.map((returnReq) => (
-              <Card key={returnReq.id}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <User className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <h3 className="font-semibold">{returnReq.customerName}</h3>
-                        <p className="text-sm text-gray-600">{returnReq.productName}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge className={getStatusColor(returnReq.status)}>{returnReq.status.toUpperCase()}</Badge>
-                      <span className="text-sm font-medium">${returnReq.refundAmount}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <p className="text-sm">
-                      <strong>Order ID:</strong> {returnReq.orderId}
-                    </p>
-                    <p className="text-sm">
-                      <strong>Reason:</strong> {returnReq.reason}
-                    </p>
-                    <p className="text-sm">
-                      <strong>Request Date:</strong> {returnReq.requestDate}
-                    </p>
-                  </div>
-
-                  <div className="flex space-x-2">
-                    {returnReq.status === "pending" && (
-                      <>
-                        <Button size="sm" onClick={() => updateReturnStatus(returnReq.id, "approved")}>
-                          Approve
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => updateReturnStatus(returnReq.id, "rejected")}
-                        >
-                          Reject
-                        </Button>
-                      </>
-                    )}
-                    {returnReq.status === "approved" && (
-                      <Button size="sm" onClick={() => updateReturnStatus(returnReq.id, "completed")}>
-                        Mark Completed
-                      </Button>
-                    )}
-                    <Button variant="outline" size="sm">
-                      View Details
-                    </Button>
-                  </div>
+            <h2 className="text-xl font-semibold">All Returns</h2>
+            {staffReturns.length === 0 ? (
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <p className="text-gray-500">No returns found</p>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              staffReturns.map((item) => (
+                <Card key={item.returnId}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(item.status)}
+                          <Badge className={getStatusColor(item.status)}>
+                            {item.status.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          Return ID: {item.returnId} | Order ID: {item.orderId} | Product ID: {item.productId}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {item.customerName && <>Customer: {item.customerName} | </>}
+                          {item.productName && <>Product: {item.productName}</>}
+                        </div>
+                        {item.customerId && (
+                          <div className="text-xs text-gray-400">
+                            Customer ID: {item.customerId}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium text-blue-700">
+                          ${Number(item.refundAmount).toFixed(2)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {item.submittedDate && (
+                            <>Submitted: {new Date(item.submittedDate).toLocaleDateString()}</>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-semibold">Reason:</span> {item.reason}
+                    </div>
+                    {item.description && (
+                      <div className="mb-2">
+                        <span className="font-semibold">Description:</span> {item.description}
+                      </div>
+                    )}
+
+                    {/* --- ACTION BUTTONS --- */}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {item.status === "pending" && (
+                        <>
+                          <Button
+                            size="sm"
+                            className="bg-blue-500 hover:bg-blue-600 text-white"
+                            onClick={() => updateReturnStatus(item.returnId, "approved")}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="bg-red-500 hover:bg-red-600 text-white"
+                            onClick={() => updateReturnStatus(item.returnId, "rejected")}
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {item.status === "approved" && (
+                        <Button
+                          size="sm"
+                          onClick={() => updateReturnStatus(item.returnId, "completed")}
+                        >
+                          Mark Completed
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedReturn(item);
+                          setViewDetailOpen(true);
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    </div>
+                    {/* --- END ACTION BUTTONS --- */}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* --- View Details Modal --- */}
+      {viewDetailOpen && selectedReturn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-2xl"
+              onClick={() => setViewDetailOpen(false)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <h2 className="text-xl font-bold mb-4">Return Details</h2>
+            <div className="mb-2">
+              <span className="font-semibold">Return ID:</span> {selectedReturn.returnId}
+            </div>
+            <div className="mb-2">
+              <span className="font-semibold">Order ID:</span> {selectedReturn.orderId}
+            </div>
+            <div className="mb-2">
+              <span className="font-semibold">Product ID:</span> {selectedReturn.productId}
+            </div>
+            <div className="mb-2">
+              <span className="font-semibold">Customer Name:</span> {selectedReturn.customerName || "N/A"}
+            </div>
+            <div className="mb-2">
+              <span className="font-semibold">Product Name:</span> {selectedReturn.productName || "N/A"}
+            </div>
+            <div className="mb-2">
+              <span className="font-semibold">Status:</span> {selectedReturn.status}
+            </div>
+            <div className="mb-2">
+              <span className="font-semibold">Refund Amount:</span> ${Number(selectedReturn.refundAmount).toFixed(2)}
+            </div>
+            <div className="mb-2">
+              <span className="font-semibold">Reason:</span> {selectedReturn.reason}
+            </div>
+            <div className="mb-2">
+              <span className="font-semibold">Description:</span> {selectedReturn.description}
+            </div>
+            <div className="mb-2">
+              <span className="font-semibold">Submitted Date:</span> {new Date(selectedReturn.submittedDate).toLocaleDateString()}
+            </div>
+            {selectedReturn.customerId && (
+              <div className="mb-2">
+                <span className="font-semibold">Customer ID:</span> {selectedReturn.customerId}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* --- End View Details Modal --- */}
     </div>
   )
 }

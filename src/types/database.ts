@@ -1,79 +1,92 @@
-// Database schema types for the pharmacy app
+// Database schema types for the pharmacy app using exact IDs and syntax
 
-export interface User {
-  id: number;
-  email: string;
-  password_hash: string;
-  first_name: string;
-  last_name: string;
-  phone?: string;
-  address?: string;
-  role: 'customer' | 'pharmacist' | 'admin';
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface Product {
-  id: number;
+export interface Customer {
+  customerId: number;
   name: string;
-  description: string;
-  price: number;
-  stock_quantity: number;
-  category: string;
-  manufacturer: string;
-  requires_prescription: boolean;
-  image_url?: string;
-  created_at: Date;
-  updated_at: Date;
+  phoneNumber: string;
+  email: string;
+  address: string;
+  dateOfBirth: Date;
+  gender: string;
 }
 
 export interface Order {
-  id: number;
-  user_id: number;
-  total_amount: number;
-  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  shipping_address: string;
-  payment_method: string;
-  payment_status: 'pending' | 'completed' | 'failed';
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface OrderItem {
-  id: number;
-  order_id: number;
-  product_id: number;
-  quantity: number;
-  price: number;
-  created_at: Date;
+  orderId: number;
+  orderDate: Date;
+  status: 'Pending' | 'Approved' | 'Delivered' | 'Cancelled';
+  totalAmount: number;
+  customerId: number;
+  prescriptionId?: number;
+  paymentId: number;
 }
 
 export interface Prescription {
-  id: number;
-  user_id: number;
-  doctor_name: string;
-  doctor_license: string;
-  prescription_date: Date;
-  expiry_date: Date;
-  image_url: string;
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: Date;
-  updated_at: Date;
+  prescriptionId: number;
+  imageFile: string;
+  uploadDate: Date;
+  approved: boolean;
+  pharmacistId: number;
+}
+
+export interface Product {
+  productId: number;
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  requiresPrescription: boolean;
+}
+
+export interface Inventory {
+  inventoryId: number;
+  productId: number;
+  branchId: number;
+  stockQuantity: number;
+  updatedAt: Date;
+}
+
+export interface Payment {
+  paymentId: number;
+  method: 'Cash' | 'CreditCard' | 'E-Wallet';
+  transactionDate: Date;
+  status: 'Success' | 'Failed' | 'Refunded';
+}
+
+export interface Pharmacist {
+  pharmacistId: number;
+  name: string;
+  licenseNumber: string;
+  branchId: number;
+}
+
+export interface Branch {
+  branchId: number;
+  location: string;
+  managerName: string;
+  contactNumber: string;
+}
+
+export interface Feedback {
+  feedbackId: number;
+  customerId: number;
+  orderId: number;
+  rating: number;
+  comments?: string;
+  submittedDate: Date;
 }
 
 export interface Cart {
-  id: number;
-  user_id: number;
-  product_id: number;
+  cartId: number;
+  customerId: number;
+  productId: number;
   quantity: number;
   created_at: Date;
-  updated_at: Date;
 }
 
 export interface Delivery {
   id: number;
-  order_id: number;
-  tracking_number: string;
+  orderId: number;
+  trackingNumber: string;
   carrier: string;
   status: 'preparing' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'failed';
   estimated_delivery: Date;
@@ -81,4 +94,16 @@ export interface Delivery {
   shipping_address: string;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface Return {
+  returnId: number;
+  orderId: number;
+  productId: number;
+  reason: string;
+  description?: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  refundAmount: number;
+  submittedDate: Date;
+  processedDate?: Date;
 }
