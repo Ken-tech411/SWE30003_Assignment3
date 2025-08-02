@@ -1,3 +1,4 @@
+// Inventory Management Page - FIXED
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -68,9 +69,11 @@ export default function InventoryPage() {
             name: product?.name || 'Unknown Product',
             category: product?.category || 'Unknown',
             // Add default values for fields that might not be in your DB
+            quantity: item.quantity || 0,
             threshold: item.threshold || 30,
             cost: item.cost || 0,
             supplier: item.supplier || 'Unknown Supplier',
+            expiryDate: item.expiryDate || '',
             lastRestocked: item.lastRestocked || new Date().toISOString().split('T')[0]
           };
         });
@@ -211,9 +214,30 @@ export default function InventoryPage() {
     setSelectedItem(null);
   };
 
-  const handleRestockSubmit = (newQuantity: number) => {
-    if (selectedItem) {
-      // Update local state
+  // FIXED: Actually call the API for restock
+  const handleRestockSubmit = async (newQuantity: number) => {
+    if (!selectedItem) return;
+
+    try {
+      const response = await fetch('/api/inventory', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'restock',
+          inventoryId: selectedItem.inventoryId,
+          quantity: newQuantity
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to restock item');
+      }
+
+      // Update local state only after successful API call
       const updatedInventory = inventoryList.map(item => 
         item.inventoryId === selectedItem.inventoryId 
           ? { ...item, quantity: item.quantity + newQuantity, lastRestocked: new Date().toISOString().split('T')[0] }
@@ -221,11 +245,52 @@ export default function InventoryPage() {
       );
       setInventoryList(updatedInventory);
       
-      // Here you would typically make an API call to update the database
-      // await fetch(`/api/inventory/${selectedItem.inventoryId}`, { method: 'PUT', ... });
-      
       alert(`Successfully restocked ${newQuantity} units of ${selectedItem.name}`);
       closeModal();
+    } catch (error) {
+      console.error('Error restocking item:', error);
+      alert(`Failed to restock item: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // FIXED: Actually call the API for edit
+  const handleEditSubmit = async (updatedItem: Inventory) => {
+    if (!selectedItem) return;
+
+    try {
+      const response = await fetch('/api/inventory', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'edit',
+          inventoryId: selectedItem.inventoryId,
+          quantity: updatedItem.quantity,
+          threshold: updatedItem.threshold,
+          expiryDate: updatedItem.expiryDate,
+          cost: updatedItem.cost,
+          supplier: updatedItem.supplier
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update item');
+      }
+
+      // Update local state only after successful API call
+      const updatedInventory = inventoryList.map(item => 
+        item.inventoryId === updatedItem.inventoryId ? updatedItem : item
+      );
+      setInventoryList(updatedInventory);
+      
+      alert('Item updated successfully!');
+      closeModal();
+    } catch (error) {
+      console.error('Error updating item:', error);
+      alert(`Failed to update item: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -235,12 +300,12 @@ export default function InventoryPage() {
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Inventory Management</h1>
-          <p className="text-gray-600">Monitor stock levels and manage inventory</p>
+          <p className="text-gray-700">Monitor stock levels and manage inventory</p>
         </div>
         <div className="flex gap-3">
           <button 
             onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
           >
             <Download className="w-4 h-4" />
             Export
@@ -259,46 +324,46 @@ export default function InventoryPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600 text-sm">Total Products</span>
+            <span className="text-gray-700 text-sm font-medium">Total Products</span>
             <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
               <div className="w-4 h-4 bg-blue-500 rounded"></div>
             </div>
           </div>
           <div className="text-2xl font-bold text-gray-900">{totalProducts}</div>
-          <div className="text-xs text-gray-500 mt-1">Active inventory items</div>
+          <div className="text-xs text-gray-600 mt-1">Active inventory items</div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600 text-sm">Low Stock Alerts</span>
+            <span className="text-gray-700 text-sm font-medium">Low Stock Alerts</span>
             <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
               <TrendingDown className="w-4 h-4 text-orange-500" />
             </div>
           </div>
           <div className="text-2xl font-bold text-orange-600">{lowStockItems}</div>
-          <div className="text-xs text-gray-500 mt-1">Items below threshold</div>
+          <div className="text-xs text-gray-600 mt-1">Items below threshold</div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600 text-sm">Out of Stock</span>
+            <span className="text-gray-700 text-sm font-medium">Out of Stock</span>
             <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
               <Minus className="w-4 h-4 text-red-500" />
             </div>
           </div>
           <div className="text-2xl font-bold text-red-600">{outOfStockItems}</div>
-          <div className="text-xs text-gray-500 mt-1">Items need restocking</div>
+          <div className="text-xs text-gray-600 mt-1">Items need restocking</div>
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-600 text-sm">Total Value</span>
+            <span className="text-gray-700 text-sm font-medium">Total Value</span>
             <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
               <span className="text-green-600 font-bold text-sm">$</span>
             </div>
           </div>
           <div className="text-2xl font-bold text-green-600">${totalValue.toFixed(2)}</div>
-          <div className="text-xs text-gray-500 mt-1">Current inventory value</div>
+          <div className="text-xs text-gray-600 mt-1">Current inventory value</div>
         </div>
       </div>
 
@@ -313,7 +378,7 @@ export default function InventoryPage() {
                 placeholder="Search inventory..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
               />
             </div>
           </div>
@@ -321,7 +386,7 @@ export default function InventoryPage() {
           <select
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
-            className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-40"
+            className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-40 text-gray-900"
           >
             {categories.map(category => (
               <option key={category} value={category}>{category}</option>
@@ -331,7 +396,7 @@ export default function InventoryPage() {
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-32"
+            className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-32 text-gray-900"
           >
             <option value="All Status">All Status</option>
             <option value="IN STOCK">In Stock</option>
@@ -345,7 +410,7 @@ export default function InventoryPage() {
       {loading && (
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-          <span className="ml-3 text-gray-600">Loading inventory data...</span>
+          <span className="ml-3 text-gray-700">Loading inventory data...</span>
         </div>
       )}
 
@@ -372,16 +437,16 @@ export default function InventoryPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Product</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Category</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Current Stock</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Threshold</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Status</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Trend</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Last Restocked</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Supplier</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Cost</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-700">Actions</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Product</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Category</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Current Stock</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Threshold</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Status</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Trend</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Last Restocked</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Supplier</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Cost</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -392,9 +457,9 @@ export default function InventoryPage() {
                     <td className="px-6 py-4">
                       <div className="font-medium text-gray-900">{item.name}</div>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">{item.category}</td>
+                    <td className="px-6 py-4 text-gray-700">{item.category}</td>
                     <td className="px-6 py-4">
-                      <span className="font-medium">{item.quantity}</span>
+                      <span className="font-medium text-gray-900">{item.quantity}</span>
                       {status === 'LOW STOCK' && (
                         <span className="ml-1 text-orange-500">⚠️</span>
                       )}
@@ -402,7 +467,7 @@ export default function InventoryPage() {
                         <span className="ml-1 text-red-500">⚠️</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-gray-600">{item.threshold} - 300</td>
+                    <td className="px-6 py-4 text-gray-700">{item.threshold} - 300</td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                         {status}
@@ -411,9 +476,9 @@ export default function InventoryPage() {
                     <td className="px-6 py-4">
                       {getTrendIcon(item.quantity, item.threshold)}
                     </td>
-                    <td className="px-6 py-4 text-gray-600">{item.lastRestocked}</td>
-                    <td className="px-6 py-4 text-gray-600">{item.supplier}</td>
-                    <td className="px-6 py-4 font-medium">${item.cost?.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-gray-700">{item.lastRestocked}</td>
+                    <td className="px-6 py-4 text-gray-700">{item.supplier}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">${item.cost?.toFixed(2)}</td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
                         <button 
@@ -443,9 +508,9 @@ export default function InventoryPage() {
       {/* Empty State */}
       {!loading && !error && filteredInventory.length === 0 && (
         <div className="text-center py-12">
-          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No inventory items found</h3>
-          <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+          <p className="text-gray-600">Try adjusting your search or filter criteria</p>
         </div>
       )}
 
@@ -463,14 +528,7 @@ export default function InventoryPage() {
         <EditInventoryModal 
           item={selectedItem} 
           onClose={closeModal} 
-          onSubmit={(updatedItem) => {
-            const updatedInventory = inventoryList.map(item => 
-              item.inventoryId === updatedItem.inventoryId ? updatedItem : item
-            );
-            setInventoryList(updatedInventory);
-            alert('Item updated successfully!');
-            closeModal();
-          }} 
+          onSubmit={handleEditSubmit} 
         />
       )}
     </main>
@@ -494,23 +552,23 @@ function RestockModal({ item, onClose, onSubmit }: {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full">
-        <div className="flex items-center justify-between p-6 border-b">
+      <div className="bg-white rounded-lg max-w-md w-full shadow-xl">
+        <div className="flex items-center justify-between p-6 border-b bg-white">
           <h2 className="text-xl font-bold text-gray-900">Restock Item</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-600" />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit} className="p-6 bg-white">
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Product</label>
             <p className="text-gray-900 font-medium">{item.name}</p>
-            <p className="text-sm text-gray-500">Current Stock: {item.quantity} units</p>
+            <p className="text-sm text-gray-600">Current Stock: {item.quantity} units</p>
           </div>
           
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-800 mb-2">
               Quantity to Add
             </label>
             <input
@@ -518,7 +576,7 @@ function RestockModal({ item, onClose, onSubmit }: {
               min="1"
               value={quantity}
               onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
               placeholder="Enter quantity"
               required
             />
@@ -552,9 +610,9 @@ function EditInventoryModal({ item, onClose, onSubmit }: {
   onSubmit: (item: Inventory) => void; 
 }) {
   const [formData, setFormData] = useState({
-    quantity: item.quantity,
+    quantity: item.quantity || 0,
     threshold: item.threshold || 30,
-    expiryDate: item.expiryDate,
+    expiryDate: item.expiryDate || '',
     cost: item.cost || 0,
     supplier: item.supplier || ''
   });
@@ -569,71 +627,71 @@ function EditInventoryModal({ item, onClose, onSubmit }: {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
+        <div className="flex items-center justify-between p-6 border-b bg-white">
           <h2 className="text-xl font-bold text-gray-900">Edit Inventory Item</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-600" />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-white">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Product</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Product</label>
             <p className="text-gray-900 font-medium">{item.name}</p>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Current Stock</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Current Stock</label>
             <input
               type="number"
               min="0"
               value={formData.quantity}
               onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value) || 0})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Threshold</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Threshold</label>
             <input
               type="number"
               min="0"
               value={formData.threshold}
               onChange={(e) => setFormData({...formData, threshold: parseInt(e.target.value) || 0})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Expiry Date</label>
             <input
               type="date"
               value={formData.expiryDate}
               onChange={(e) => setFormData({...formData, expiryDate: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Cost ($)</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Cost ($)</label>
             <input
               type="number"
               step="0.01"
               min="0"
               value={formData.cost}
               onChange={(e) => setFormData({...formData, cost: parseFloat(e.target.value) || 0})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Supplier</label>
             <input
               type="text"
               value={formData.supplier}
               onChange={(e) => setFormData({...formData, supplier: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
             />
           </div>
           

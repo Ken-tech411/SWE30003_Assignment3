@@ -1,3 +1,4 @@
+// Products Management Page
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -198,7 +199,7 @@ export default function ProductsPage() {
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Products</h1>
-          <p className="text-gray-600">Manage your pharmacy inventory products</p>
+          <p className="text-gray-700">Manage your pharmacy inventory products</p>
         </div>
         <button 
           onClick={handleAddProduct}
@@ -220,17 +221,17 @@ export default function ProductsPage() {
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
               />
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" />
+            <Filter className="w-4 h-4 text-gray-600" />
             <select
               value={categoryFilter}
               onChange={e => setCategoryFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-40"
+              className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-40 text-gray-900"
             >
               {categories.map(category => (
                 <option key={category} value={category}>{category}</option>
@@ -240,7 +241,7 @@ export default function ProductsPage() {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-32"
+              className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-32 text-gray-900"
             >
               <option value="All Status">All Status</option>
               <option value="IN STOCK">In Stock</option>
@@ -255,7 +256,7 @@ export default function ProductsPage() {
       {loading && (
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-          <span className="ml-3 text-gray-600">Loading products...</span>
+          <span className="ml-3 text-gray-700">Loading products...</span>
         </div>
       )}
 
@@ -285,12 +286,12 @@ export default function ProductsPage() {
                 {/* Product Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Package className="w-6 h-6 text-gray-500" />
+                    <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Package className="w-6 h-6 text-orange-600" />
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
-                      <p className="text-sm text-gray-500">{product.category}</p>
+                      <p className="text-sm text-orange-600 font-medium">{product.category}</p>
                     </div>
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
@@ -299,7 +300,7 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Product Description */}
-                <p className="text-gray-600 text-sm mb-4 leading-relaxed">
+                <p className="text-gray-700 text-sm mb-4 leading-relaxed">
                   {product.description}
                 </p>
 
@@ -308,7 +309,7 @@ export default function ProductsPage() {
                   <div className="text-2xl font-bold text-gray-900 mb-1">
                     ${typeof product.price === 'number' ? product.price.toFixed(2) : product.price}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-700">
                     Stock: {product.stock || 0} units
                   </div>
                 </div>
@@ -328,7 +329,7 @@ export default function ProductsPage() {
                 <div className="flex gap-2">
                   <button 
                     onClick={() => handleViewProduct(product)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
                   >
                     <Eye className="w-4 h-4" />
                     View
@@ -350,9 +351,9 @@ export default function ProductsPage() {
       {/* Empty State */}
       {!loading && !error && filteredProducts.length === 0 && (
         <div className="text-center py-12">
-          <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-          <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+          <p className="text-gray-600">Try adjusting your search or filter criteria</p>
         </div>
       )}
 
@@ -410,18 +411,18 @@ function ProductViewModal({ product, onClose, onEdit }: {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+        <div className="flex items-center justify-between p-6 border-b bg-white">
           <h2 className="text-2xl font-bold text-gray-900">Product Details</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-600" />
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 bg-white">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-100 rounded-lg p-12 flex items-center justify-center">
-              <Package className="w-16 h-16 text-gray-400" />
+            <div className="bg-orange-50 rounded-lg p-12 flex items-center justify-center">
+              <Package className="w-16 h-16 text-orange-500" />
             </div>
 
             <div>
@@ -436,26 +437,26 @@ function ProductViewModal({ product, onClose, onEdit }: {
               
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Price</label>
+                  <label className="text-sm font-medium text-gray-600">Price</label>
                   <p className="text-2xl font-bold text-green-600">
                     ${typeof product.price === 'number' ? product.price.toFixed(2) : product.price}
                   </p>
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Stock Level</label>
+                  <label className="text-sm font-medium text-gray-600">Stock Level</label>
                   <p className="text-lg font-semibold text-gray-900">{product.stock || 0} units</p>
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Prescription Status</label>
+                  <label className="text-sm font-medium text-gray-600">Prescription Status</label>
                   <p className={`text-sm font-medium ${product.requiresPrescription ? 'text-red-600' : 'text-green-600'}`}>
                     {product.requiresPrescription ? 'Prescription Required' : 'Over-the-Counter'}
                   </p>
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Product ID</label>
+                  <label className="text-sm font-medium text-gray-600">Product ID</label>
                   <p className="text-gray-900 font-mono">{product.productId}</p>
                 </div>
               </div>
@@ -463,8 +464,8 @@ function ProductViewModal({ product, onClose, onEdit }: {
           </div>
 
           <div className="mt-6">
-            <label className="text-sm font-medium text-gray-500">Description</label>
-            <p className="text-gray-700 mt-2 leading-relaxed">{product.description}</p>
+            <label className="text-sm font-medium text-gray-600">Description</label>
+            <p className="text-gray-800 mt-2 leading-relaxed">{product.description}</p>
           </div>
 
           <div className="flex gap-3 mt-8">
@@ -518,56 +519,56 @@ function ProductFormModal({ product, onClose, onSubmit, title }: {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
+      <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
+        <div className="flex items-center justify-between p-6 border-b bg-white">
           <h2 className="text-xl font-bold text-gray-900">{title}</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-600" />
           </button>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-white">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Product Name *</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Product Name *</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
               required
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Category</label>
             <input
               type="text"
               value={formData.category}
               onChange={(e) => setFormData({...formData, category: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Price ($) *</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Price ($) *</label>
             <input
               type="number"
               step="0.01"
               min="0"
               value={formData.price}
               onChange={(e) => setFormData({...formData, price: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
               required
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
               rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
             />
           </div>
           
@@ -579,7 +580,7 @@ function ProductFormModal({ product, onClose, onSubmit, title }: {
                 onChange={(e) => setFormData({...formData, requiresPrescription: e.target.checked})}
                 className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
               />
-              <span className="text-sm font-medium text-gray-700">Requires Prescription</span>
+              <span className="text-sm font-medium text-gray-800">Requires Prescription</span>
             </label>
           </div>
           

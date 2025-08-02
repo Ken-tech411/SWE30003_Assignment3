@@ -1,3 +1,4 @@
+// Products API Route
 import { NextRequest, NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
 
@@ -25,7 +26,7 @@ export async function GET() {
   }
 }
 
-// POST - Add new product
+// POST - Add new product - FIXED
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -41,14 +42,17 @@ export async function POST(request: NextRequest) {
 
     const conn = await mysql.createConnection(db);
     
-    // Generate a unique product ID (you might want to use UUID or let database auto-increment)
-    const productId = `PROD-${Date.now()}`;
-    
+    // Use AUTO_INCREMENT for productId instead of generating manually
+    // Remove the productId from the INSERT statement and let MySQL handle it
     const [result] = await conn.execute(
-      `INSERT INTO Product (productId, name, description, price, category, requiresPrescription) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [productId, name, description || '', price, category || '', requiresPrescription || false]
+      `INSERT INTO Product (name, description, price, category, requiresPrescription) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [name, description || '', parseFloat(price), category || '', requiresPrescription || false]
     );
+    
+    // Get the auto-generated productId
+    const insertResult = result as any;
+    const productId = insertResult.insertId;
     
     await conn.end();
     
@@ -61,7 +65,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error adding product:', error);
     return NextResponse.json(
-      { error: 'Failed to add product' },
+      { error: 'Failed to add product', details: (error as Error).message },
       { status: 500 }
     );
   }
@@ -87,7 +91,7 @@ export async function PUT(request: NextRequest) {
       `UPDATE Product 
        SET name = ?, description = ?, price = ?, category = ?, requiresPrescription = ?
        WHERE productId = ?`,
-      [name, description || '', price, category || '', requiresPrescription || false, productId]
+      [name, description || '', parseFloat(price), category || '', requiresPrescription || false, productId]
     );
     
     await conn.end();
