@@ -1,16 +1,32 @@
 "use client";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-import { createContext, useContext, useEffect, useState } from "react";
+type UserRole = "customer" | "pharmacist" | "admin";
+type User = {
+  userId: number;
+  username: string;
+  role: UserRole;
+  linkedId: number;
+} | null | undefined;
 
-const AuthContext = createContext<any>({ user: null, setUser: () => {} });
+type AuthContextType = {
+  user: User;
+  setUser: React.Dispatch<React.SetStateAction<User>>;
+};
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+const AuthContext = createContext<AuthContextType>({
+  user: undefined,
+  setUser: () => {},
+});
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User>(undefined);
 
   useEffect(() => {
     fetch("/api/auth/me")
-      .then(res => res.json())
-      .then(data => setUser(data.user));
+      .then((res) => res.json())
+      .then((data) => setUser(data.user))
+      .catch(() => setUser(null));
   }, []);
 
   return (
@@ -20,6 +36,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
+export const useAuth = () => useContext(AuthContext);

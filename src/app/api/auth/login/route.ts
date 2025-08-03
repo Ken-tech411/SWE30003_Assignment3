@@ -23,15 +23,21 @@ export async function POST(request: Request) {
       [user.userId, sessionToken]
     );
 
-    // Set cookie
+    // Set cookie and return user info
     const response = NextResponse.json({
       success: true,
       role: user.role,
       userId: user.userId,
+      username: user.username,
       linkedId: user.linkedId,
       sessionToken
     });
-    response.cookies.set('sessionToken', sessionToken, { httpOnly: true, path: '/' });
+    response.cookies.set('sessionToken', sessionToken, {
+      httpOnly: true,
+      path: '/',
+      sameSite: 'lax', // important for localhost
+      secure: process.env.NODE_ENV === 'production'
+    });
     return response;
   } catch (error) {
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });

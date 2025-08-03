@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Clock, CheckCircle, AlertCircle, Package, RefreshCw } from "lucide-react"
+import { useAuth } from "@/context/AuthContext";
+import NavbarAuthButton from "@/components/NavbarAuthButton";
 
 interface ReturnItem {
   returnId: number
@@ -25,7 +26,9 @@ interface ReturnItem {
 }
 
 export default function ReturnsPage() {
-  const [activeTab, setActiveTab] = useState("customer")
+  const { user } = useAuth();
+
+  // Loading and not-logged-in states
   const [returnReason, setReturnReason] = useState("")
   const [returnDescription, setReturnDescription] = useState("")
   const [orderId, setOrderId] = useState("")
@@ -35,6 +38,11 @@ export default function ReturnsPage() {
   const [staffReturns, setStaffReturns] = useState<ReturnItem[]>([])
   const [loading, setLoading] = useState(true)
   const [customerId, setCustomerId] = useState<number | null>(null)
+
+  // Pagination for customer view
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(5)
+  const [total, setTotal] = useState(0)
 
   // Modal state for View Details
   const [viewDetailOpen, setViewDetailOpen] = useState(false)
@@ -46,6 +54,9 @@ export default function ReturnsPage() {
   const [staffCustomerId, setStaffCustomerId] = useState("")
   const [debouncedStaffOrderId, setDebouncedStaffOrderId] = useState("")
   const [debouncedStaffCustomerId, setDebouncedStaffCustomerId] = useState("")
+
+  // Stats for staff view
+  const [stats, setStats] = useState({ pending: 0, approved: 0, rejected: 0, totalRefunds: 0 });
 
   // Debounce for staff filters
   useEffect(() => {
@@ -76,31 +87,41 @@ export default function ReturnsPage() {
     }
   }, [orderId])
 
-  // Fetch returns when tab or customerId changes
+  // Fetch returns when user or customerId changes
   useEffect(() => {
-    if (activeTab === "customer" && customerId) {
+    if (user?.role === "customer" && customerId) {
       fetchCustomerReturns()
-    } else if (activeTab === "staff") {
+    } else if (user?.role === "pharmacist") {
       fetchAllReturns()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, customerId])
+  }, [user, customerId])
 
   // Refetch staff returns on filter change
   useEffect(() => {
-    if (activeTab === "staff") {
+    if (user?.role === "pharmacist") {
       fetchAllReturns()
     }
     // eslint-disable-next-line
   }, [staffStatusFilters, debouncedStaffOrderId, debouncedStaffCustomerId])
 
+  // Refetch customer returns on page change
+  useEffect(() => {
+    if (user?.role === "customer" && customerId) {
+      fetchCustomerReturns()
+    }
+    // eslint-disable-next-line
+  }, [page])
+
   const fetchCustomerReturns = async () => {
     if (!customerId) return
     setLoading(true)
     try {
-      const response = await fetch(`/api/returns?customerId=${customerId}`)
+      // Add pagination and sort by latest
+      const response = await fetch(`/api/returns?customerId=${customerId}&page=${page}&pageSize=${pageSize}&sort=desc`)
       const data = await response.json()
-      setCustomerReturns(data.returns || [])
+      setCustomerReturns(Array.isArray(data.returns) ? data.returns : [])
+      setTotal(data.total || (Array.isArray(data.returns) ? data.returns.length : 0))
     } catch (error) {
       console.error('Error fetching customer returns:', error)
     } finally {
@@ -109,19 +130,20 @@ export default function ReturnsPage() {
   }
 
   const fetchAllReturns = async () => {
-    setLoading(true)
-    const statusParams = staffStatusFilters.map(s => `status=${encodeURIComponent(s)}`).join('&')
-    const orderIdParam = debouncedStaffOrderId ? `&orderId=${encodeURIComponent(debouncedStaffOrderId)}` : ''
-    const customerIdParam = debouncedStaffCustomerId ? `&customerId=${encodeURIComponent(debouncedStaffCustomerId)}` : ''
-    const query = [statusParams, orderIdParam, customerIdParam].filter(Boolean).join('&')
+    setLoading(true);
+    const statusParams = staffStatusFilters.map(s => `status=${encodeURIComponent(s)}`).join('&');
+    const orderIdParam = debouncedStaffOrderId ? `&orderId=${encodeURIComponent(debouncedStaffOrderId)}` : '';
+    const customerIdParam = debouncedStaffCustomerId ? `&customerId=${encodeURIComponent(debouncedStaffCustomerId)}` : '';
+    const query = [statusParams, orderIdParam, customerIdParam].filter(Boolean).join('&');
     try {
-      const response = await fetch(`/api/returns?${query}`)
-      const data = await response.json()
-      setStaffReturns(data.returns || [])
+      const response = await fetch(`/api/returns?${query}`);
+      const data = await response.json();
+      setStaffReturns(data.returns || []);
+      setStats(data.stats || { pending: 0, approved: 0, rejected: 0, totalRefunds: 0 });
     } catch (error) {
-      console.error('Error fetching all returns:', error)
+      console.error('Error fetching all returns:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -152,6 +174,7 @@ export default function ReturnsPage() {
         setReturnReason("")
         setReturnDescription("")
         setOrderProducts([])
+        setPage(1) // Reset to first page to show latest
         fetchCustomerReturns()
       } else {
         alert("Failed to submit return request")
@@ -178,7 +201,7 @@ export default function ReturnsPage() {
 
       if (response.ok) {
         // Refresh the returns list
-        if (activeTab === "customer") {
+        if (user?.role === "customer") {
           fetchCustomerReturns()
         } else {
           fetchAllReturns()
@@ -219,7 +242,7 @@ export default function ReturnsPage() {
     }
   }
 
-  if (loading) {
+  if (user === undefined) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">Loading returns...</div>
@@ -227,403 +250,442 @@ export default function ReturnsPage() {
     )
   }
 
+  if (!user) {
+    return (
+      <div className="w-full flex justify-end p-4 border-b bg-white">
+        <NavbarAuthButton />
+        <div className="flex justify-center items-center h-96 w-full">
+          <div className="text-xl">Please sign in to access this page.</div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Account status bar ---
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Returns & Exchanges</h1>
+    <div>
+      <div className="flex items-center justify-end gap-4 p-4 border-b bg-white">
+        <div className="text-sm text-gray-700">
+          Signed in as: <span className="font-semibold">{user.username}</span>
+          {" · "}
+          <span className="capitalize">{user.role}</span>
+        </div>
+        <NavbarAuthButton />
+      </div>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8">Returns & Exchanges</h1>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="customer">Customer View</TabsTrigger>
-          <TabsTrigger value="staff">Staff View</TabsTrigger>
-        </TabsList>
-
-        {/* Customer View */}
-        <TabsContent value="customer" className="space-y-6">
-          <Card className="overflow-visible">
-            <CardHeader>
-              <CardTitle>Request Return/Exchange</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 overflow-visible">
-              <div>
-                <Label htmlFor="orderId">Order ID</Label>
-                <Input
-                  id="orderId"
-                  placeholder="Enter your order ID (e.g., 123)"
-                  value={orderId}
-                  onChange={(e) => setOrderId(e.target.value)}
-                />
-              </div>
-
-              {orderProducts.length > 0 && (
-                <div>
-                  <Label htmlFor="productId">Product</Label>
-                  <select
-                    id="productId"
-                    value={productId ?? ""}
-                    onChange={e => setProductId(Number(e.target.value))}
-                    className="block w-full border rounded px-3 py-2"
-                  >
-                    <option value="">Select a product</option>
-                    {orderProducts.map(product => (
-                      <option key={product.productId} value={product.productId}>
-                        {product.name} (${Number(product.unitPrice).toFixed(2)})
-                      </option>
-                    ))}
-                  </select>
+        {/* Pharmacist: Show staff view directly, no tabs */}
+        {user.role === "pharmacist" ? (
+          <div className="space-y-6">
+            {/* --- Staff Filters --- */}
+            <Card>
+              <CardContent className="py-4">
+                <div className="flex flex-wrap gap-8 items-center">
+                  {/* Status Filter */}
+                  <div>
+                    <div className="font-semibold mb-2">Filter by Status:</div>
+                    <div className="flex gap-3 flex-wrap">
+                      {["pending", "approved", "rejected"].map(status => (
+                        <label key={status} className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={staffStatusFilters.includes(status)}
+                            onChange={e => {
+                              setStaffStatusFilters(prev =>
+                                e.target.checked
+                                  ? [...prev, status]
+                                  : prev.filter(s => s !== status)
+                              );
+                            }}
+                          />
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Order ID Filter */}
+                  <div>
+                    <div className="font-semibold mb-2">Filter by Order ID:</div>
+                    <Input
+                      type="number"
+                      placeholder="Order ID"
+                      value={staffOrderId}
+                      onChange={e => setStaffOrderId(e.target.value)}
+                    />
+                  </div>
+                  {/* Customer ID Filter */}
+                  <div>
+                    <div className="font-semibold mb-2">Filter by Customer ID:</div>
+                    <Input
+                      type="number"
+                      placeholder="Customer ID"
+                      value={staffCustomerId}
+                      onChange={e => setStaffCustomerId(e.target.value)}
+                    />
+                  </div>
                 </div>
-              )}
+              </CardContent>
+            </Card>
+            {/* --- End Staff Filters --- */}
 
-              <div>
-                <Label htmlFor="reason">Reason for Return</Label>
-                <select
-                  id="reason"
-                  value={returnReason}
-                  onChange={e => setReturnReason(e.target.value)}
-                  className="block w-full border rounded px-3 py-2"
-                >
-                  <option value="">Select a reason</option>
-                  <option value="damaged">Damaged product</option>
-                  <option value="wrong_product">Wrong product received</option>
-                  <option value="expired">Expired product</option>
-                  <option value="not_as_described">Not as described</option>
-                  <option value="allergic_reaction">Allergic reaction</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Please provide details about your return request..."
-                  value={returnDescription}
-                  onChange={(e) => setReturnDescription(e.target.value)}
-                  className="min-h-[100px]"
-                />
-              </div>
-
-              <Button onClick={handleReturnSubmit} className="w-full">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Submit Return Request
-              </Button>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4">
-            <h2 className="text-xl font-semibold">Your Return Requests</h2>
-            {customerReturns.length === 0 ? (
+            {/* --- Stats Cards --- */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <Card>
-                <CardContent className="p-6 text-center">
-                  <p className="text-gray-500">No return requests found</p>
+                <CardContent className="p-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold">{stats.pending}</p>
+                  </div>
+                  <Clock className="w-8 h-8 text-yellow-500" />
                 </CardContent>
               </Card>
-            ) : (
-              customerReturns.map((item) => (
-                <Card key={item.returnId} className="border rounded-lg mb-4">
-                  <CardContent className="p-6">
-                    <div className="flex items-center mb-2">
-                      {getStatusIcon(item.status)}
-                      <h3 className="font-semibold ml-2">{item.productName || "Product"}</h3>
-                      <span className="ml-auto">
-                        <Badge className={getStatusColor(item.status)}>
-                          {item.status.toUpperCase()}
-                        </Badge>
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 mb-2">
-                      Order #{item.orderId}
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Reason:</span> {item.reason}
-                    </div>
-                    {item.description && (
+              <Card>
+                <CardContent className="p-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Approved</p>
+                    <p className="text-2xl font-bold">{stats.approved}</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-500" />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Rejected</p>
+                    <p className="text-2xl font-bold">{stats.rejected}</p>
+                  </div>
+                  <AlertCircle className="w-8 h-8 text-red-500" />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Refunds</p>
+                    <p className="text-2xl font-bold">
+                      ${Number(stats.totalRefunds).toFixed(2)}
+                    </p>
+                  </div>
+                  <RefreshCw className="w-8 h-8 text-blue-500" />
+                </CardContent>
+              </Card>
+            </div>
+            {/* --- End Stats Cards --- */}
+
+            {/* --- All Returns List --- */}
+            <div className="grid gap-4">
+              <h2 className="text-xl font-semibold">All Returns</h2>
+              {staffReturns.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <p className="text-gray-500">No returns found</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                staffReturns.map((item) => (
+                  <Card key={item.returnId}>
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(item.status)}
+                            <Badge className={getStatusColor(item.status)}>
+                              {item.status.toUpperCase()}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            Return ID: {item.returnId} | Order ID: {item.orderId} | Product ID: {item.productId}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {item.customerName && <>Customer: {item.customerName} | </>}
+                            {item.productName && <>Product: {item.productName}</>}
+                          </div>
+                          {item.customerId && (
+                            <div className="text-xs text-gray-400">
+                              Customer ID: {item.customerId}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium text-blue-700">
+                            ${Number(item.refundAmount).toFixed(2)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {item.submittedDate && (
+                              <>Submitted: {new Date(item.submittedDate).toLocaleDateString()}</>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                       <div className="mb-2">
-                        <span className="font-semibold">Description:</span> {item.description}
+                        <span className="font-semibold">Reason:</span> {item.reason}
                       </div>
-                    )}
-                    <div className="mb-2">
-                      <span className="font-semibold">Request Date:</span> {new Date(item.submittedDate).toLocaleDateString()}
-                    </div>
-                    <div className="text-right font-medium text-blue-700 mb-2">
-                      ${Number(item.refundAmount).toFixed(2)}
-                    </div>
-                    {/* Notification */}
-                    {item.status === "approved" && (
-                      <div className="mt-4 p-3 rounded bg-green-50 text-green-800 text-sm">
-                        Your return has been approved. Please package the item and use the provided return label.
+                      {item.description && (
+                        <div className="mb-2">
+                          <span className="font-semibold">Description:</span> {item.description}
+                        </div>
+                      )}
+
+                      {/* --- ACTION BUTTONS --- */}
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {item.status === "pending" && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                              onClick={() => updateReturnStatus(item.returnId, "approved")}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-red-500 hover:bg-red-600 text-white"
+                              onClick={() => updateReturnStatus(item.returnId, "rejected")}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedReturn(item);
+                            setViewDetailOpen(true);
+                          }}
+                        >
+                          View Details
+                        </Button>
                       </div>
-                    )}
-                    {item.status === "rejected" && (
-                      <div className="mt-4 p-3 rounded bg-red-50 text-red-800 text-sm">
-                        Your return request has been rejected. Please contact customer service for more information.
-                      </div>
-                    )}
+                      {/* --- END ACTION BUTTONS --- */}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          // Customer: Show customer view directly, no tabs
+          <div className="space-y-6">
+            <Card className="overflow-visible">
+              <CardHeader>
+                <CardTitle>Request Return/Exchange</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 overflow-visible">
+                <div>
+                  <Label htmlFor="orderId">Order ID</Label>
+                  <Input
+                    id="orderId"
+                    placeholder="Enter your order ID (e.g., 123)"
+                    value={orderId}
+                    onChange={(e) => setOrderId(e.target.value)}
+                  />
+                </div>
+
+                {orderProducts.length > 0 && (
+                  <div>
+                    <Label htmlFor="productId">Product</Label>
+                    <select
+                      id="productId"
+                      value={productId ?? ""}
+                      onChange={e => setProductId(Number(e.target.value))}
+                      className="block w-full border rounded px-3 py-2"
+                    >
+                      <option value="">Select a product</option>
+                      {orderProducts.map(product => (
+                        <option key={product.productId} value={product.productId}>
+                          {product.name} (${Number(product.unitPrice).toFixed(2)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="reason">Reason for Return</Label>
+                  <select
+                    id="reason"
+                    value={returnReason}
+                    onChange={e => setReturnReason(e.target.value)}
+                    className="block w-full border rounded px-3 py-2"
+                  >
+                    <option value="">Select a reason</option>
+                    <option value="damaged">Damaged product</option>
+                    <option value="wrong_product">Wrong product received</option>
+                    <option value="expired">Expired product</option>
+                    <option value="not_as_described">Not as described</option>
+                    <option value="allergic_reaction">Allergic reaction</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Please provide details about your return request..."
+                    value={returnDescription}
+                    onChange={(e) => setReturnDescription(e.target.value)}
+                    className="min-h-[100px]"
+                  />
+                </div>
+
+                <Button onClick={handleReturnSubmit} className="w-full">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Submit Return Request
+                </Button>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4">
+              <h2 className="text-xl font-semibold">Your Return Requests</h2>
+              {loading ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <p className="text-gray-500">Loading...</p>
+                  </CardContent>
+                </Card>
+              ) : customerReturns.length === 0 ? (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <p className="text-gray-500">No return requests found</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {customerReturns.map((item) => (
+                    <Card key={item.returnId} className="border rounded-lg mb-4">
+                      <CardContent className="p-6">
+                        <div className="flex items-center mb-2">
+                          {getStatusIcon(item.status)}
+                          <h3 className="font-semibold ml-2">{item.productName || "Product"}</h3>
+                          <span className="ml-auto">
+                            <Badge className={getStatusColor(item.status)}>
+                              {item.status.toUpperCase()}
+                            </Badge>
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">
+                          Order #{item.orderId}
+                        </div>
+                        <div className="mb-2">
+                          <span className="font-semibold">Reason:</span> {item.reason}
+                        </div>
+                        {item.description && (
+                          <div className="mb-2">
+                            <span className="font-semibold">Description:</span> {item.description}
+                          </div>
+                        )}
+                        <div className="mb-2">
+                          <span className="font-semibold">Request Date:</span> {new Date(item.submittedDate).toLocaleDateString()}
+                        </div>
+                        <div className="text-right font-medium text-blue-700 mb-2">
+                          ${Number(item.refundAmount).toFixed(2)}
+                        </div>
+                        {/* Notification */}
+                        {item.status === "approved" && (
+                          <div className="mt-4 p-3 rounded bg-green-50 text-green-800 text-sm">
+                            Your return has been approved. Please package the item and use the provided return label.
+                          </div>
+                        )}
+                        {item.status === "rejected" && (
+                          <div className="mt-4 p-3 rounded bg-red-50 text-red-800 text-sm">
+                            Your return request has been rejected. Please contact customer service for more information.
+                          </div>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedReturn(item);
+                            setViewDetailOpen(true);
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {/* Pagination controls */}
+                  <div className="flex justify-center items-center gap-2 mt-4">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setSelectedReturn(item);
-                        setViewDetailOpen(true);
-                      }}
+                      disabled={page === 1}
+                      onClick={() => setPage(page - 1)}
                     >
-                      View Details
+                      Previous
                     </Button>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Staff View */}
-        <TabsContent value="staff" className="space-y-6">
-          {/* --- Staff Filters --- */}
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex flex-wrap gap-8 items-center">
-                {/* Status Filter */}
-                <div>
-                  <div className="font-semibold mb-2">Filter by Status:</div>
-                  <div className="flex gap-3 flex-wrap">
-                    {["pending", "approved", "rejected", "completed"].map(status => (
-                      <label key={status} className="flex items-center gap-1 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={staffStatusFilters.includes(status)}
-                          onChange={e => {
-                            setStaffStatusFilters(prev =>
-                              e.target.checked
-                                ? [...prev, status]
-                                : prev.filter(s => s !== status)
-                            );
-                          }}
-                        />
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </label>
-                    ))}
+                    <span>
+                      Page {page} of {Math.ceil(total / pageSize) || 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page * pageSize >= total}
+                      onClick={() => setPage(page + 1)}
+                    >
+                      Next
+                    </Button>
                   </div>
-                </div>
-                {/* Order ID Filter */}
-                <div>
-                  <div className="font-semibold mb-2">Filter by Order ID:</div>
-                  <Input
-                    type="number"
-                    placeholder="Order ID"
-                    value={staffOrderId}
-                    onChange={e => setStaffOrderId(e.target.value)}
-                  />
-                </div>
-                {/* Customer ID Filter */}
-                <div>
-                  <div className="font-semibold mb-2">Filter by Customer ID:</div>
-                  <Input
-                    type="number"
-                    placeholder="Customer ID"
-                    value={staffCustomerId}
-                    onChange={e => setStaffCustomerId(e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          {/* --- End Staff Filters --- */}
-
-          {/* --- Stats Cards --- */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Card>
-              <CardContent className="p-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold">{staffReturns.filter(r => r.status === "pending").length}</p>
-                </div>
-                <Clock className="w-8 h-8 text-yellow-500" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Approved</p>
-                  <p className="text-2xl font-bold">{staffReturns.filter(r => r.status === "approved").length}</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-500" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Rejected</p>
-                  <p className="text-2xl font-bold">{staffReturns.filter(r => r.status === "rejected").length}</p>
-                </div>
-                <AlertCircle className="w-8 h-8 text-red-500" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Refunds</p>
-                  <p className="text-2xl font-bold">
-                    ${staffReturns.reduce((sum, r) => sum + Number(r.refundAmount ?? 0), 0).toFixed(2)}
-                  </p>
-                </div>
-                <RefreshCw className="w-8 h-8 text-blue-500" />
-              </CardContent>
-            </Card>
+                </>
+              )}
+            </div>
           </div>
-          {/* --- End Stats Cards --- */}
+        )}
 
-          {/* --- All Returns List --- */}
-          <div className="grid gap-4">
-            <h2 className="text-xl font-semibold">All Returns</h2>
-            {staffReturns.length === 0 ? (
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <p className="text-gray-500">No returns found</p>
-                </CardContent>
-              </Card>
-            ) : (
-              staffReturns.map((item) => (
-                <Card key={item.returnId}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(item.status)}
-                          <Badge className={getStatusColor(item.status)}>
-                            {item.status.toUpperCase()}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          Return ID: {item.returnId} | Order ID: {item.orderId} | Product ID: {item.productId}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {item.customerName && <>Customer: {item.customerName} | </>}
-                          {item.productName && <>Product: {item.productName}</>}
-                        </div>
-                        {item.customerId && (
-                          <div className="text-xs text-gray-400">
-                            Customer ID: {item.customerId}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium text-blue-700">
-                          ${Number(item.refundAmount).toFixed(2)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {item.submittedDate && (
-                            <>Submitted: {new Date(item.submittedDate).toLocaleDateString()}</>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mb-2">
-                      <span className="font-semibold">Reason:</span> {item.reason}
-                    </div>
-                    {item.description && (
-                      <div className="mb-2">
-                        <span className="font-semibold">Description:</span> {item.description}
-                      </div>
-                    )}
-
-                    {/* --- ACTION BUTTONS --- */}
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {item.status === "pending" && (
-                        <>
-                          <Button
-                            size="sm"
-                            className="bg-blue-500 hover:bg-blue-600 text-white"
-                            onClick={() => updateReturnStatus(item.returnId, "approved")}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="bg-red-500 hover:bg-red-600 text-white"
-                            onClick={() => updateReturnStatus(item.returnId, "rejected")}
-                          >
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                      {item.status === "approved" && (
-                        <Button
-                          size="sm"
-                          onClick={() => updateReturnStatus(item.returnId, "completed")}
-                        >
-                          Mark Completed
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedReturn(item);
-                          setViewDetailOpen(true);
-                        }}
-                      >
-                        View Details
-                      </Button>
-                    </div>
-                    {/* --- END ACTION BUTTONS --- */}
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* --- View Details Modal --- */}
-      {viewDetailOpen && selectedReturn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
-            <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-2xl"
-              onClick={() => setViewDetailOpen(false)}
-              aria-label="Close"
-            >
-              ×
-            </button>
-            <h2 className="text-xl font-bold mb-4">Return Details</h2>
-            <div className="mb-2">
-              <span className="font-semibold">Return ID:</span> {selectedReturn.returnId}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold">Order ID:</span> {selectedReturn.orderId}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold">Product ID:</span> {selectedReturn.productId}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold">Customer Name:</span> {selectedReturn.customerName || "N/A"}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold">Product Name:</span> {selectedReturn.productName || "N/A"}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold">Status:</span> {selectedReturn.status}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold">Refund Amount:</span> ${Number(selectedReturn.refundAmount).toFixed(2)}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold">Reason:</span> {selectedReturn.reason}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold">Description:</span> {selectedReturn.description}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold">Submitted Date:</span> {new Date(selectedReturn.submittedDate).toLocaleDateString()}
-            </div>
-            {selectedReturn.customerId && (
+        {/* --- View Details Modal --- */}
+        {viewDetailOpen && selectedReturn && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
+              <button
+                className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-2xl"
+                onClick={() => setViewDetailOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <h2 className="text-xl font-bold mb-4">Return Details</h2>
               <div className="mb-2">
-                <span className="font-semibold">Customer ID:</span> {selectedReturn.customerId}
+                <span className="font-semibold">Return ID:</span> {selectedReturn.returnId}
               </div>
-            )}
+              <div className="mb-2">
+                <span className="font-semibold">Order ID:</span> {selectedReturn.orderId}
+              </div>
+              <div className="mb-2">
+                <span className="font-semibold">Product ID:</span> {selectedReturn.productId}
+              </div>
+              <div className="mb-2">
+                <span className="font-semibold">Customer Name:</span> {selectedReturn.customerName || "N/A"}
+              </div>
+              <div className="mb-2">
+                <span className="font-semibold">Product Name:</span> {selectedReturn.productName || "N/A"}
+              </div>
+              <div className="mb-2">
+                <span className="font-semibold">Status:</span> {selectedReturn.status}
+              </div>
+              <div className="mb-2">
+                <span className="font-semibold">Refund Amount:</span> ${Number(selectedReturn.refundAmount).toFixed(2)}
+              </div>
+              <div className="mb-2">
+                <span className="font-semibold">Reason:</span> {selectedReturn.reason}
+              </div>
+              <div className="mb-2">
+                <span className="font-semibold">Description:</span> {selectedReturn.description}
+              </div>
+              <div className="mb-2">
+                <span className="font-semibold">Submitted Date:</span> {new Date(selectedReturn.submittedDate).toLocaleDateString()}
+              </div>
+              {selectedReturn.customerId && (
+                <div className="mb-2">
+                  <span className="font-semibold">Customer ID:</span> {selectedReturn.customerId}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-      {/* --- End View Details Modal --- */}
+        )}
+        {/* --- End View Details Modal --- */}
+      </div>
     </div>
   )
 }

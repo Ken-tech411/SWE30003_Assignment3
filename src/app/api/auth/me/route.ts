@@ -4,7 +4,7 @@ import pool from '@/lib/db';
 
 export async function GET(request: Request) {
   try {
-    const cookieStore = await cookies(); // Await if your Next.js version requires it
+    const cookieStore = await cookies();
     const sessionToken =
       request.headers.get('authorization') ||
       cookieStore.get('sessionToken')?.value;

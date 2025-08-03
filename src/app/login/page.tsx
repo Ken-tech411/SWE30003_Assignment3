@@ -25,8 +25,15 @@ export default function LoginPage() {
       return;
     }
     if (!isSignup) {
-      setUser(data);
-      router.push("/"); // redirect to home or dashboard
+      // Fetch user info after login to update context
+      const meRes = await fetch("/api/auth/me");
+      const meData = await meRes.json();
+      setUser(meData.user);
+      if (meData.user?.role === "pharmacist") {
+        router.push("/delivery"); // or wherever your staff view is
+      } else {
+        router.push("/"); // customer home
+      }
     } else {
       setIsSignup(false);
     }
