@@ -100,9 +100,9 @@ export default function UploadPrescriptionPage() {
 
   // Fetch customer prescriptions (for customer view)
   useEffect(() => {
-    if (user && user.role === "customer" && activeTab === "customer") {
+    if (user && user.role === "customer" && activeTab === "customer" && user.linkedId) {
       setIsLoading(true);
-      fetch(`/api/prescriptions?page=${page}&pageSize=${pageSize}`)
+      fetch(`/api/prescriptions?customerId=${user.linkedId}&page=${page}&pageSize=${pageSize}`)
         .then(res => res.json())
         .then(data => {
           setCustomerPrescriptions(Array.isArray(data.data) ? data.data : []);
@@ -143,11 +143,17 @@ export default function UploadPrescriptionPage() {
     }
   }
 
+  // --- CUSTOMER UPLOAD LOGIC: include customerId ---
   const handleUpload = async () => {
+    if (!user?.linkedId) {
+      alert("You must be signed in as a customer to upload a prescription.");
+      return;
+    }
     try {
       const formDataToSend = new FormData()
       formDataToSend.append('patientName', formData.patientName)
       formDataToSend.append('phoneNumber', formData.phoneNumber)
+      formDataToSend.append('customerId', String(user.linkedId))
       if (formData.imageFile) {
         formDataToSend.append('imageFile', formData.imageFile)
       }
@@ -177,6 +183,7 @@ export default function UploadPrescriptionPage() {
       alert("Failed to submit prescription")
     }
   }
+  // --- END CUSTOMER UPLOAD LOGIC ---
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

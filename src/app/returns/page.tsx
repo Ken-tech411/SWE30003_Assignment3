@@ -38,6 +38,7 @@ export default function ReturnsPage() {
   const [customerReturns, setCustomerReturns] = useState<ReturnItem[]>([])
   const [staffReturns, setStaffReturns] = useState<ReturnItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [orderError, setOrderError] = useState<string | null>(null)
 
   // Pagination for customer view
   const [page, setPage] = useState(1)
@@ -69,17 +70,30 @@ export default function ReturnsPage() {
     return () => clearTimeout(handler)
   }, [staffCustomerId])
 
-  // Fetch order products when orderId changes
+  // Fetch order products when orderId changes, but only if the order belongs to the signed-in customer
   useEffect(() => {
-    if (orderId) {
-      fetch(`/api/orders/${orderId}/items`)
-        .then(res => res.json())
-        .then(data => setOrderProducts(data.items || []))
-    } else {
+    if (!orderId) {
       setOrderProducts([])
       setProductId(null)
+      setOrderError(null)
+      return
     }
-  }, [orderId])
+    const validateOrder = async () => {
+      setOrderError(null)
+      if (!user?.customerId) return
+      const res = await fetch(`/api/orders/track?orderId=${encodeURIComponent(orderId)}&customerId=${user.customerId}`)
+      if (!res.ok) {
+        setOrderProducts([])
+        setProductId(null)
+        setOrderError("You can only request returns for your own orders.")
+        return
+      }
+      const data = await res.json()
+      setOrderProducts(data.items || [])
+      setOrderError(null)
+    }
+    validateOrder()
+  }, [orderId, user?.customerId])
 
   // Fetch returns when user changes
   useEffect(() => {
@@ -136,6 +150,10 @@ export default function ReturnsPage() {
   const handleReturnSubmit = async () => {
     if (!orderId || !productId || !returnReason) {
       alert("Please fill in all required fields")
+      return
+    }
+    if (orderError) {
+      alert(orderError)
       return
     }
 
@@ -259,11 +277,7 @@ export default function ReturnsPage() {
   return (
     <div>
       <div className="flex items-center justify-end gap-4 p-4 border-b bg-white">
-        <div className="text-sm text-gray-700">
-          Signed in as: <span className="font-semibold">{user.username}</span>
-          {" · "}
-          <span className="capitalize">{user.role}</span>
-        </div>
+        {/* Only show "Hello, Name" and Sign Out */}
         <NavbarAuthButton />
       </div>
       <div className="container mx-auto px-4 py-8">
@@ -474,6 +488,9 @@ export default function ReturnsPage() {
                     value={orderId}
                     onChange={(e) => setOrderId(e.target.value)}
                   />
+                  {orderError && (
+                    <div className="text-red-500 text-sm mt-1">{orderError}</div>
+                  )}
                 </div>
 
                 {orderProducts.length > 0 && (
@@ -524,7 +541,11 @@ export default function ReturnsPage() {
                   />
                 </div>
 
-                <Button onClick={handleReturnSubmit} className="w-full">
+                <Button
+                  onClick={handleReturnSubmit}
+                  className="w-full"
+                  disabled={!!orderError}
+                >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Submit Return Request
                 </Button>

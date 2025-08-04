@@ -251,11 +251,7 @@ export default function DeliveryPage() {
   return (
     <div>
       <div className="flex items-center justify-end gap-4 p-4 border-b bg-white">
-        <div className="text-sm text-gray-700">
-          Signed in as: <span className="font-semibold">{user.username}</span>
-          {" · "}
-          <span className="capitalize">{user.role}</span>
-        </div>
+        {/* Only show "Hello, Name" and Sign Out */}
         <NavbarAuthButton />
       </div>
       <div className="container mx-auto px-4 py-8">
