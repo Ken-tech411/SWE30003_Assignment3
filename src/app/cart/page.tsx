@@ -19,36 +19,35 @@ interface CartItem {
   requiresPrescription: boolean
 }
 
-function isErrorWithMessage(error: unknown): error is { message: string } {
-  return typeof error === 'object' && error !== null && 'message' in error;
-}
-
 function getErrorMessage(error: unknown): string {
-  if (isErrorWithMessage(error)) return error.message;
-  return 'An unknown error occurred';
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String((error as { message: string }).message)
+  }
+  return "An unknown error occurred"
 }
 
 export default function CartPage() {
-  const { user } = useAuth();
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [approvedPrescriptions, setApprovedPrescriptions] = useState([]);
+  const { user } = useAuth()
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [approvedPrescriptions, setApprovedPrescriptions] = useState<any[]>([])
 
   useEffect(() => {
     if (user && user.customerId) {
       fetchCartItems(user.customerId)
     }
+    // eslint-disable-next-line
   }, [user])
 
   useEffect(() => {
     async function fetchApprovedPrescriptions() {
-      if (!user?.customerId) return;
-      const res = await fetch(`/api/prescriptions?customerId=${user.customerId}&status=approved`);
-      const data = await res.json();
-      setApprovedPrescriptions(Array.isArray(data.data) ? data.data : []);
+      if (!user?.customerId) return
+      const res = await fetch(`/api/prescriptions?customerId=${user.customerId}&status=approved`)
+      const data = await res.json()
+      setApprovedPrescriptions(Array.isArray(data.data) ? data.data : [])
     }
-    fetchApprovedPrescriptions();
-  }, [user?.customerId]);
+    fetchApprovedPrescriptions()
+  }, [user?.customerId])
 
   const fetchCartItems = async (cid: number) => {
     setLoading(true)
@@ -56,12 +55,12 @@ export default function CartPage() {
       const response = await fetch(`/api/cart?customerId=${cid}`)
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch cart items')
+        throw new Error(errorData.error || "Failed to fetch cart items")
       }
       const data = await response.json()
       setCartItems(data.cartItems || [])
     } catch (error: unknown) {
-      console.error('Error fetching cart items:', error)
+      console.error("Error fetching cart items:", error)
       alert(getErrorMessage(error))
     } finally {
       setLoading(false)
@@ -72,21 +71,21 @@ export default function CartPage() {
     if (!user?.customerId || newQuantity < 1) return
 
     try {
-      const response = await fetch('/api/cart', {
-        method: 'PUT',
+      const response = await fetch("/api/cart", {
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           customerId: user.customerId,
           productId,
-          quantity: newQuantity
-        })
+          quantity: newQuantity,
+        }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update quantity')
+        throw new Error(errorData.error || "Failed to update quantity")
       }
 
       setCartItems((items) =>
@@ -95,7 +94,7 @@ export default function CartPage() {
         )
       )
     } catch (error: unknown) {
-      console.error('Error updating quantity:', error)
+      console.error("Error updating quantity:", error)
       alert(getErrorMessage(error))
     }
   }
@@ -103,17 +102,17 @@ export default function CartPage() {
   const removeItem = async (cartId: number) => {
     try {
       const response = await fetch(`/api/cart?cartId=${cartId}`, {
-        method: 'DELETE'
+        method: "DELETE",
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to remove item')
+        throw new Error(errorData.error || "Failed to remove item")
       }
 
       setCartItems((items) => items.filter((item) => item.cartId !== cartId))
     } catch (error: unknown) {
-      console.error('Error removing item:', error)
+      console.error("Error removing item:", error)
       alert(getErrorMessage(error))
     }
   }
@@ -123,7 +122,6 @@ export default function CartPage() {
   const total = subtotal + tax
   const hasApprovedPrescription = approvedPrescriptions.length > 0
 
-  // Only after all hooks, you can conditionally return UI
   if (!user) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -135,7 +133,7 @@ export default function CartPage() {
           <NavbarAuthButton />
         </div>
       </div>
-    );
+    )
   }
 
   if (loading) {
@@ -243,12 +241,14 @@ export default function CartPage() {
                 <Button
                   className="w-full"
                   size="lg"
-                  disabled={cartItems.length === 0 ||
-                    cartItems.some(item => item.requiresPrescription)}
+                  disabled={
+                    cartItems.length === 0 ||
+                    cartItems.some(item => item.requiresPrescription && !hasApprovedPrescription)
+                  }
                 >
-                  {hasApprovedPrescription
-                    ? "Proceed to Checkout"
-                    : "Complete Prescription First"}
+                  {cartItems.some(item => item.requiresPrescription) && !hasApprovedPrescription
+                    ? "Complete Prescription First"
+                    : "Proceed to Checkout"}
                 </Button>
               </Link>
             </CardContent>
