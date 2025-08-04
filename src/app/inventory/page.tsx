@@ -23,11 +23,19 @@ interface Product {
   category?: string;
 }
 
+interface Branch {
+  branchId: number;
+  location: string;
+  managerName: string;
+  contactNumber: string;
+}
+
 interface ExportConfig {
   reportType: 'summary' | 'detailed' | 'lowstock' | 'outofstock';
   format: 'csv' | 'xlsx';
   category: string;
   status: string;
+  branch: string;
   dateFrom: string;
   dateTo: string;
   stockThreshold: number;
@@ -47,6 +55,7 @@ export default function InventoryPage() {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'view' | 'restock' | 'edit'>('view');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [branches, setBranches] = useState<Branch[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,6 +111,20 @@ export default function InventoryPage() {
     
     fetchData();
   }, []);
+
+  const fetchBranches = async () => {
+    try {
+      const response = await fetch('/api/branches');
+      if (response.ok) {
+        const result = await response.json();
+        setBranches(result.branches || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch branches:', error);
+    }
+  };
+  
+  fetchBranches();
 
   if (user === undefined) {
     return (
@@ -190,140 +213,157 @@ export default function InventoryPage() {
   };
 
   const processExport = async (exportConfig: ExportConfig) => {
-    try {
-      setLoading(true);
-      
-      // Filter data based on export configuration
-      let dataToExport = inventoryList;
-      
-      // Apply filters
-      if (exportConfig.category !== 'All Categories') {
-        dataToExport = dataToExport.filter(item => item.category === exportConfig.category);
-      }
-      
-      if (exportConfig.status !== 'All Status') {
-        dataToExport = dataToExport.filter(item => {
-          const status = getStatus(item.quantity, item.threshold);
-          return status === exportConfig.status;
-        });
-      }
-      
-      if (exportConfig.stockThreshold > 0) {
-        dataToExport = dataToExport.filter(item => item.quantity <= exportConfig.stockThreshold);
-      }
-
-      // Validate data
-      if (dataToExport.length === 0) {
-        alert('No data matches your export criteria. Please adjust your filters.');
-        setLoading(false);
-        return;
-      }
-
-      // Generate report based on report type
-      let headers: string[] = [];
-      let reportData: (string | number)[][] = []; // Changed to support Excel format
-      
-      switch (exportConfig.reportType) {
-        case 'summary':
-          headers = ['Product Name', 'Category', 'Current Stock', 'Status', 'Total Value ($)'];
-          reportData = dataToExport.map(item => [
-            item.name || 'Unknown',
-            item.category || 'Unknown',
-            item.quantity,
-            getStatus(item.quantity, item.threshold),
-            parseFloat((item.quantity * (item.cost || 0)).toFixed(2))
-          ]);
-          break;
-          
-        case 'detailed':
-          headers = ['Product ID', 'Product Name', 'Category', 'Current Stock', 'Threshold', 'Status', 'Last Restocked', 'Unit Cost ($)', 'Total Value ($)', 'Branch ID'];
-          reportData = dataToExport.map(item => [
-            item.productId,
-            item.name || 'Unknown',
-            item.category || 'Unknown',
-            item.quantity,
-            item.threshold || 30,
-            getStatus(item.quantity, item.threshold),
-            item.lastRestocked || 'Unknown',
-            parseFloat((item.cost || 0).toFixed(2)),
-            parseFloat((item.quantity * (item.cost || 0)).toFixed(2)),
-            item.branchId
-          ]);
-          break;
-          
-        case 'lowstock':
-          const lowStockData = dataToExport.filter(item => item.quantity <= (item.threshold || 30) && item.quantity > 0);
-          headers = ['Product Name', 'Category', 'Current Stock', 'Threshold', 'Shortage', 'Reorder Priority'];
-          reportData = lowStockData.map(item => [
-            item.name || 'Unknown',
-            item.category || 'Unknown',
-            item.quantity,
-            item.threshold || 30,
-            (item.threshold || 30) - item.quantity,
-            item.quantity <= 5 ? 'High' : item.quantity <= 15 ? 'Medium' : 'Low'
-          ]);
-          break;
-          
-        case 'outofstock':
-          const outOfStockData = dataToExport.filter(item => item.quantity === 0);
-          headers = ['Product Name', 'Category', 'Days Out of Stock', 'Last Restocked', 'Priority'];
-          reportData = outOfStockData.map(item => {
-            const daysOut = item.lastRestocked ? Math.floor((new Date().getTime() - new Date(item.lastRestocked).getTime()) / (1000 * 3600 * 24)) : 'Unknown';
-            return [
-              item.name || 'Unknown',
-              item.category || 'Unknown',
-              daysOut,
-              item.lastRestocked || 'Unknown',
-              daysOut === 'Unknown' || daysOut > 7 ? 'Critical' : 'High'
-            ];
-          });
-          break;
-      }
-
-      // Create report metadata
-      const reportMetadata = [
-        [`Long Chau Pharmacy ${exportConfig.reportType.toUpperCase()} Report`],
-        [`Generated on: ${new Date().toLocaleString()}`],
-        [`Generated by: Manager`],
-        [`Report Type: ${exportConfig.reportType}`],
-        [`Date Range: ${exportConfig.dateFrom} to ${exportConfig.dateTo}`],
-        [`Category Filter: ${exportConfig.category}`],
-        [`Status Filter: ${exportConfig.status}`],
-        [`Total Items: ${dataToExport.length}`],
-        [`Export Format: ${exportConfig.format.toUpperCase()}`],
-        [''], // Empty row
-      ];
-
-      if (exportConfig.format === 'xlsx') {
-        // Generate Excel file
-        try {
-          await generateExcelFile(
-            reportMetadata,
-            headers,
-            reportData,
-            `${exportConfig.reportType}-report-${new Date().toISOString().split('T')[0]}.xlsx`
-          );
-        } catch (error) {
-          console.error('Excel generation failed:', error);
-          alert('Excel export failed. Falling back to CSV format.');
-          // Fallback to CSV
-          generateCSVFile(reportMetadata, headers, reportData, `${exportConfig.reportType}-report-${new Date().toISOString().split('T')[0]}.csv`);
-        }
-      } else {
-        // Generate CSV file
-        generateCSVFile(reportMetadata, headers, reportData, `${exportConfig.reportType}-report-${new Date().toISOString().split('T')[0]}.csv`);
-      }
-      
-      alert(`${exportConfig.reportType.toUpperCase()} report exported successfully!\n\nReport Details:\n- Items: ${dataToExport.length}\n- Format: ${exportConfig.format.toUpperCase()}`);
-      
-    } catch (error) {
-      console.error('Export failed:', error);
-      alert('Export failed. Please try again or contact IT support.');
-    } finally {
-      setLoading(false);
-      setShowExportModal(false);
+  try {
+    setLoading(true);
+    
+    // Filter data based on export configuration
+    let dataToExport = inventoryList;
+    
+    // Apply branch filter FIRST
+    if (exportConfig.branch !== 'All Branches') {
+      dataToExport = dataToExport.filter(item => item.branchId === exportConfig.branch);
     }
-  };
+    
+    // Apply other existing filters
+    if (exportConfig.category !== 'All Categories') {
+      dataToExport = dataToExport.filter(item => item.category === exportConfig.category);
+    }
+    
+    if (exportConfig.status !== 'All Status') {
+      dataToExport = dataToExport.filter(item => {
+        const status = getStatus(item.quantity, item.threshold);
+        return status === exportConfig.status;
+      });
+    }
+    
+    if (exportConfig.stockThreshold > 0) {
+      dataToExport = dataToExport.filter(item => item.quantity <= exportConfig.stockThreshold);
+    }
+
+    // Validate data
+    if (dataToExport.length === 0) {
+      alert('No data matches your export criteria. Please adjust your filters.');
+      setLoading(false);
+      return;
+    }
+
+    // Get branch name for display
+    const selectedBranch = branches.find(b => b.branchId.toString() === exportConfig.branch);
+    const branchName = exportConfig.branch === 'All Branches' 
+      ? 'All Branches' 
+      : (selectedBranch?.location || `Branch ${exportConfig.branch}`);
+
+    // Generate report based on report type
+    let headers: string[] = [];
+    let reportData: (string | number)[][] = [];
+    
+    switch (exportConfig.reportType) {
+      case 'summary':
+        headers = ['Product Name', 'Category', 'Branch Location', 'Current Stock', 'Status', 'Total Value ($)'];
+        reportData = dataToExport.map(item => [
+          item.name || 'Unknown',
+          item.category || 'Unknown',
+          branches.find(b => b.branchId.toString() === item.branchId)?.location || item.branchId,
+          item.quantity,
+          getStatus(item.quantity, item.threshold),
+          parseFloat((item.quantity * (item.cost || 0)).toFixed(2))
+        ]);
+        break;
+        
+      case 'detailed':
+        headers = ['Product ID', 'Product Name', 'Category', 'Branch ID', 'Branch Location', 'Current Stock', 'Threshold', 'Status', 'Last Restocked', 'Unit Cost ($)', 'Total Value ($)'];
+        reportData = dataToExport.map(item => [
+          item.productId,
+          item.name || 'Unknown',
+          item.category || 'Unknown',
+          item.branchId,
+          branches.find(b => b.branchId.toString() === item.branchId)?.location || item.branchId,
+          item.quantity,
+          item.threshold || 30,
+          getStatus(item.quantity, item.threshold),
+          item.lastRestocked || 'Unknown',
+          parseFloat((item.cost || 0).toFixed(2)),
+          parseFloat((item.quantity * (item.cost || 0)).toFixed(2))
+        ]);
+        break;
+        
+      case 'lowstock':
+        const lowStockData = dataToExport.filter(item => item.quantity <= (item.threshold || 30) && item.quantity > 0);
+        headers = ['Product Name', 'Category', 'Branch Location', 'Current Stock', 'Threshold', 'Shortage', 'Reorder Priority'];
+        reportData = lowStockData.map(item => [
+          item.name || 'Unknown',
+          item.category || 'Unknown',
+          branches.find(b => b.branchId.toString() === item.branchId)?.location || item.branchId,
+          item.quantity,
+          item.threshold || 30,
+          (item.threshold || 30) - item.quantity,
+          item.quantity <= 5 ? 'High' : item.quantity <= 15 ? 'Medium' : 'Low'
+        ]);
+        break;
+        
+      case 'outofstock':
+        const outOfStockData = dataToExport.filter(item => item.quantity === 0);
+        headers = ['Product Name', 'Category', 'Branch Location', 'Days Out of Stock', 'Last Restocked', 'Priority'];
+        reportData = outOfStockData.map(item => {
+          const daysOut = item.lastRestocked ? Math.floor((new Date().getTime() - new Date(item.lastRestocked).getTime()) / (1000 * 3600 * 24)) : 'Unknown';
+          return [
+            item.name || 'Unknown',
+            item.category || 'Unknown',
+            branches.find(b => b.branchId.toString() === item.branchId)?.location || item.branchId,
+            daysOut,
+            item.lastRestocked || 'Unknown',
+            daysOut === 'Unknown' || daysOut > 7 ? 'Critical' : 'High'
+          ];
+        });
+        break;
+    }
+
+    // Create report metadata with branch information
+    const reportMetadata = [
+      [`Long Chau Pharmacy ${exportConfig.reportType.toUpperCase()} Report`],
+      [`Generated on: ${new Date().toLocaleString()}`],
+      [`Generated by: ${user?.name || user?.username || 'Admin'}`],
+      [`Report Type: ${exportConfig.reportType}`],
+      [`Branch: ${branchName}`],
+      [`Date Range: ${exportConfig.dateFrom} to ${exportConfig.dateTo}`],
+      [`Category Filter: ${exportConfig.category}`],
+      [`Status Filter: ${exportConfig.status}`],
+      [`Total Items: ${dataToExport.length}`],
+      [`Export Format: ${exportConfig.format.toUpperCase()}`],
+      [''], // Empty row
+    ];
+
+    // Generate filename with branch info
+    const sanitizedBranchName = branchName.replace(/[^a-zA-Z0-9]/g, '-');
+    const filename = `${exportConfig.reportType}-${sanitizedBranchName}-report-${new Date().toISOString().split('T')[0]}`;
+
+    if (exportConfig.format === 'xlsx') {
+      try {
+        await generateExcelFile(
+          reportMetadata,
+          headers,
+          reportData,
+          `${filename}.xlsx`
+        );
+      } catch (error) {
+        console.error('Excel generation failed:', error);
+        alert('Excel export failed. Falling back to CSV format.');
+        generateCSVFile(reportMetadata, headers, reportData, `${filename}.csv`);
+      }
+    } else {
+      generateCSVFile(reportMetadata, headers, reportData, `${filename}.csv`);
+    }
+    
+    alert(`${exportConfig.reportType.toUpperCase()} report for ${branchName} exported successfully!\n\nReport Details:\n- Items: ${dataToExport.length}\n- Branch: ${branchName}\n- Format: ${exportConfig.format.toUpperCase()}`);
+    
+  } catch (error) {
+    console.error('Export failed:', error);
+    alert('Export failed. Please try again or contact IT support.');
+  } finally {
+    setLoading(false);
+    setShowExportModal(false);
+  }
+};
 
   const handleSyncInventory = async () => {
     try {
@@ -689,6 +729,7 @@ export default function InventoryPage() {
           categories={categories}
           inventoryList={inventoryList}
           getStatus={getStatus}
+          branches={branches}
         />
       )}
 
@@ -718,19 +759,22 @@ function ExportModal({
   onExport, 
   categories, 
   inventoryList,
-  getStatus 
+  getStatus,
+  branches
 }: {
   onClose: () => void;
   onExport: (config: ExportConfig) => void;
-  categories: (string | undefined)[]; // Fixed type to accept undefined values
+  categories: (string | undefined)[];
   inventoryList: Inventory[];
   getStatus: (quantity: number, threshold?: number) => string;
+  branches: Branch[];
 }) {
   const [exportConfig, setExportConfig] = useState<ExportConfig>({
     reportType: 'detailed',
     format: 'csv',
     category: 'All Categories',
     status: 'All Status',
+    branch: 'All Branches',
     dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     dateTo: new Date().toISOString().split('T')[0],
     stockThreshold: 0,
@@ -746,14 +790,30 @@ function ExportModal({
   };
 
   const getPreviewCount = () => {
-    let count = inventoryList.length;
+    let filteredData = inventoryList;
+    
+    // Apply branch filter
+    if (exportConfig.branch !== 'All Branches') {
+      filteredData = filteredData.filter(item => item.branchId === exportConfig.branch);
+    }
+    
+    // Apply category filter
     if (exportConfig.category !== 'All Categories') {
-      count = inventoryList.filter(item => item.category === exportConfig.category).length;
+      filteredData = filteredData.filter(item => item.category === exportConfig.category);
     }
+    
+    // Apply status filter
     if (exportConfig.status !== 'All Status') {
-      count = inventoryList.filter(item => getStatus(item.quantity, item.threshold) === exportConfig.status).length;
+      filteredData = filteredData.filter(item => getStatus(item.quantity, item.threshold) === exportConfig.status);
     }
-    return count;
+    
+    return filteredData.length;
+  };
+
+  const getSelectedBranchName = () => {
+    if (exportConfig.branch === 'All Branches') return 'All Branches';
+    const branch = branches.find(b => b.branchId.toString() === exportConfig.branch);
+    return branch?.location || `Branch ${exportConfig.branch}`;
   };
 
   return (
@@ -833,10 +893,26 @@ function ExportModal({
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Filters - NOW WITH BRANCH SELECTION */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-800 mb-2">Category Filter</label>
+              <label className="block text-sm font-medium text-gray-800 mb-2">Branch</label>
+              <select
+                value={exportConfig.branch}
+                onChange={(e) => setExportConfig({...exportConfig, branch: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              >
+                <option value="All Branches">All Branches</option>
+                {branches.map((branch) => (
+                  <option key={branch.branchId} value={branch.branchId.toString()}>
+                    {branch.location}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-2">Category</label>
               <select
                 value={exportConfig.category}
                 onChange={(e) => setExportConfig({...exportConfig, category: e.target.value})}
@@ -849,7 +925,7 @@ function ExportModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-800 mb-2">Status Filter</label>
+              <label className="block text-sm font-medium text-gray-800 mb-2">Status</label>
               <select
                 value={exportConfig.status}
                 onChange={(e) => setExportConfig({...exportConfig, status: e.target.value})}
@@ -915,7 +991,7 @@ function ExportModal({
             </div>
           </div>
 
-          {/* Preview */}
+          {/* Enhanced Preview with Branch Info */}
           <div className="bg-gray-50 p-4 rounded-lg">
             <h4 className="font-medium text-gray-800 mb-2">Export Preview</h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -928,10 +1004,14 @@ function ExportModal({
                 <span className="ml-2 font-medium">{exportConfig.format.toUpperCase()}</span>
               </div>
               <div>
+                <span className="text-gray-600">Branch:</span>
+                <span className="ml-2 font-medium">{getSelectedBranchName()}</span>
+              </div>
+              <div>
                 <span className="text-gray-600">Items to Export:</span>
                 <span className="ml-2 font-medium">{getPreviewCount()}</span>
               </div>
-              <div>
+              <div className="col-span-2">
                 <span className="text-gray-600">Date Range:</span>
                 <span className="ml-2 font-medium">{exportConfig.dateFrom} to {exportConfig.dateTo}</span>
               </div>
