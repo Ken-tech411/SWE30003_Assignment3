@@ -1,8 +1,9 @@
-// Inventory Management Page
+// Inventory Management Page - Complete with Export Modal
 'use client';
 
 import { useEffect, useState } from 'react';
 import { Search, Download, RefreshCw, TrendingUp, TrendingDown, Minus, Edit, Package, X } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 interface Inventory {
   inventoryId: string;
@@ -22,18 +23,30 @@ interface Product {
   category?: string;
 }
 
+interface ExportConfig {
+  reportType: 'summary' | 'detailed' | 'lowstock' | 'outofstock';
+  format: 'csv' | 'xlsx';
+  category: string;
+  status: string;
+  dateFrom: string;
+  dateTo: string;
+  stockThreshold: number;
+  includeMetadata: boolean;
+}
+
 export default function InventoryPage() {
+  const { user } = useAuth();
   const [inventoryList, setInventoryList] = useState<Inventory[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All Categories');
   const [statusFilter, setStatusFilter] = useState('All Status');
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<Inventory | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'view' | 'restock' | 'edit'>('view');
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,6 +72,7 @@ export default function InventoryPage() {
           productsRes.json()
         ]);
 
+        // Access the inventory array from the response object
         const inventoryData = inventoryResult.inventory || [];
         const productsData = productsResult.products || [];
 
@@ -69,9 +83,7 @@ export default function InventoryPage() {
             ...item,
             name: product?.name || 'Unknown Product',
             category: product?.category || 'Unknown',
-            // Get actual cost from Product table price and ensure it's a number
             cost: Number(product?.price || 0),
-            // Add default values for fields that might not be in your DB
             quantity: item.quantity || 0,
             threshold: item.threshold || 30,
             lastRestocked: item.lastRestocked || new Date().toISOString().split('T')[0]
@@ -87,11 +99,50 @@ export default function InventoryPage() {
         setLoading(false);
       }
     };
-
+    
     fetchData();
   }, []);
 
-  const getStatus = (quantity: number, threshold: number = 30) => {
+  if (user === undefined) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+        <span className="ml-3 text-gray-700">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+          <p className="text-gray-600 mb-4">Please sign in to access the inventory management system.</p>
+          <a href="/login" className="text-blue-600 hover:text-blue-800 underline">
+            Go to Login
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user.role || (user.role !== 'pharmacist' && user.role !== 'admin')) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+          <p className="text-gray-600 mb-4">
+            Only pharmacists and administrators can access the inventory management system.
+          </p>
+          <a href="/" className="text-blue-600 hover:text-blue-800 underline">
+            Return to Home
+          </a>
+        </div>
+      </div>
+    );
+  }
+  
+  const getStatus = (quantity: number, threshold: number = 30): string => {
     if (quantity === 0) return 'OUT OF STOCK';
     if (quantity <= threshold) return 'LOW STOCK';
     return 'IN STOCK';
@@ -129,114 +180,148 @@ export default function InventoryPage() {
 
   const categories = ['All Categories', ...Array.from(new Set(inventoryList.map(item => item.category).filter(Boolean)))];
 
-  const handleExport = async () => {
+  const handleExport = () => {
+    // Check if user is admin
+    if (user?.role !== 'admin') {
+      alert('Access Denied: Only administrators can export inventory data.');
+      return;
+    }
+    setShowExportModal(true);
+  };
+
+  const processExport = async (exportConfig: ExportConfig) => {
     try {
-      // Step 1: Access Export or Share Report (from use case)
       setLoading(true);
       
-      // Step 2: Select Report Parameters (Date range, filters, etc.)
-      const reportParameters = {
-        dateRange: new Date().toISOString().split('T')[0],
-        categoryFilter: categoryFilter,
-        statusFilter: statusFilter,
-        searchTerm: searchTerm,
-        totalItems: filteredInventory.length
-      };
+      // Filter data based on export configuration
+      let dataToExport = inventoryList;
+      
+      // Apply filters
+      if (exportConfig.category !== 'All Categories') {
+        dataToExport = dataToExport.filter(item => item.category === exportConfig.category);
+      }
+      
+      if (exportConfig.status !== 'All Status') {
+        dataToExport = dataToExport.filter(item => {
+          const status = getStatus(item.quantity, item.threshold);
+          return status === exportConfig.status;
+        });
+      }
+      
+      if (exportConfig.stockThreshold > 0) {
+        dataToExport = dataToExport.filter(item => item.quantity <= exportConfig.stockThreshold);
+      }
 
-      // Step 3: Validate Parameters
-      if (filteredInventory.length === 0) {
-        alert('No data available to export. Please adjust your filters.');
+      // Validate data
+      if (dataToExport.length === 0) {
+        alert('No data matches your export criteria. Please adjust your filters.');
         setLoading(false);
         return;
       }
 
-      // Step 4: Generate Report Data
-      const headers = [
-        'Product ID',
-        'Product Name', 
-        'Category',
-        'Current Stock',
-        'Threshold Range',
-        'Status',
-        'Trend',
-        'Last Restocked',
-        'Unit Cost ($)',
-        'Total Value ($)',
-        'Branch ID'
+      // Generate report based on report type
+      let headers: string[] = [];
+      let reportData: (string | number)[][] = []; // Changed to support Excel format
+      
+      switch (exportConfig.reportType) {
+        case 'summary':
+          headers = ['Product Name', 'Category', 'Current Stock', 'Status', 'Total Value ($)'];
+          reportData = dataToExport.map(item => [
+            item.name || 'Unknown',
+            item.category || 'Unknown',
+            item.quantity,
+            getStatus(item.quantity, item.threshold),
+            parseFloat((item.quantity * (item.cost || 0)).toFixed(2))
+          ]);
+          break;
+          
+        case 'detailed':
+          headers = ['Product ID', 'Product Name', 'Category', 'Current Stock', 'Threshold', 'Status', 'Last Restocked', 'Unit Cost ($)', 'Total Value ($)', 'Branch ID'];
+          reportData = dataToExport.map(item => [
+            item.productId,
+            item.name || 'Unknown',
+            item.category || 'Unknown',
+            item.quantity,
+            item.threshold || 30,
+            getStatus(item.quantity, item.threshold),
+            item.lastRestocked || 'Unknown',
+            parseFloat((item.cost || 0).toFixed(2)),
+            parseFloat((item.quantity * (item.cost || 0)).toFixed(2)),
+            item.branchId
+          ]);
+          break;
+          
+        case 'lowstock':
+          const lowStockData = dataToExport.filter(item => item.quantity <= (item.threshold || 30) && item.quantity > 0);
+          headers = ['Product Name', 'Category', 'Current Stock', 'Threshold', 'Shortage', 'Reorder Priority'];
+          reportData = lowStockData.map(item => [
+            item.name || 'Unknown',
+            item.category || 'Unknown',
+            item.quantity,
+            item.threshold || 30,
+            (item.threshold || 30) - item.quantity,
+            item.quantity <= 5 ? 'High' : item.quantity <= 15 ? 'Medium' : 'Low'
+          ]);
+          break;
+          
+        case 'outofstock':
+          const outOfStockData = dataToExport.filter(item => item.quantity === 0);
+          headers = ['Product Name', 'Category', 'Days Out of Stock', 'Last Restocked', 'Priority'];
+          reportData = outOfStockData.map(item => {
+            const daysOut = item.lastRestocked ? Math.floor((new Date().getTime() - new Date(item.lastRestocked).getTime()) / (1000 * 3600 * 24)) : 'Unknown';
+            return [
+              item.name || 'Unknown',
+              item.category || 'Unknown',
+              daysOut,
+              item.lastRestocked || 'Unknown',
+              daysOut === 'Unknown' || daysOut > 7 ? 'Critical' : 'High'
+            ];
+          });
+          break;
+      }
+
+      // Create report metadata
+      const reportMetadata = [
+        [`Long Chau Pharmacy ${exportConfig.reportType.toUpperCase()} Report`],
+        [`Generated on: ${new Date().toLocaleString()}`],
+        [`Generated by: Manager`],
+        [`Report Type: ${exportConfig.reportType}`],
+        [`Date Range: ${exportConfig.dateFrom} to ${exportConfig.dateTo}`],
+        [`Category Filter: ${exportConfig.category}`],
+        [`Status Filter: ${exportConfig.status}`],
+        [`Total Items: ${dataToExport.length}`],
+        [`Export Format: ${exportConfig.format.toUpperCase()}`],
+        [''], // Empty row
       ];
-      
-      const reportData = filteredInventory.map(item => {
-        const status = getStatus(item.quantity, item.threshold);
-        const trend = item.quantity === 0 ? 'Critical' : 
-                    item.quantity <= (item.threshold || 30) ? 'Declining' : 'Stable';
-        const totalValue = item.quantity * (item.cost || 0);
-        
-        return [
-          `"${item.productId}"`,
-          `"${item.name}"`,
-          `"${item.category}"`,
-          `${item.quantity}`,
-          `"${item.threshold} - 300"`,
-          `"${status}"`,
-          `"${trend}"`,
-          `"${item.lastRestocked}"`,
-          `${(item.cost || 0).toFixed(2)}`,
-          `${totalValue.toFixed(2)}`,
-          `"${item.branchId}"`
-        ].join(',');
-      });
 
-      // Step 5: Create Report Header with metadata
-      const reportHeader = [
-        `# Long Chau Pharmacy Inventory Report`,
-        `# Generated on: ${new Date().toLocaleString()}`,
-        `# Report Parameters:`,
-        `# - Category Filter: ${categoryFilter}`,
-        `# - Status Filter: ${statusFilter}`,
-        `# - Search Term: ${searchTerm || 'None'}`,
-        `# - Total Items: ${filteredInventory.length}`,
-        `# - Total Value: $${totalValue.toFixed(2)}`,
-        `# - Low Stock Items: ${lowStockItems}`,
-        `# - Out of Stock Items: ${outOfStockItems}`,
-        `#`,
-        ''
-      ].join('\n');
-
-      // Step 6: Combine Report Content
-      const csvContent = reportHeader + [
-        headers.join(','),
-        ...reportData
-      ].join('\n');
-
-      // Step 7: Provide Export Options (CSV format)
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = window.URL.createObjectURL(blob);
-      
-      // Step 8: Export Function Fails or File Too Large (Alternative flow handling)
-      if (blob.size > 10 * 1024 * 1024) { // 10MB limit
-        alert('Export file is too large. Please apply more specific filters to reduce data size.');
-        setLoading(false);
-        return;
+      if (exportConfig.format === 'xlsx') {
+        // Generate Excel file
+        try {
+          await generateExcelFile(
+            reportMetadata,
+            headers,
+            reportData,
+            `${exportConfig.reportType}-report-${new Date().toISOString().split('T')[0]}.xlsx`
+          );
+        } catch (error) {
+          console.error('Excel generation failed:', error);
+          alert('Excel export failed. Falling back to CSV format.');
+          // Fallback to CSV
+          generateCSVFile(reportMetadata, headers, reportData, `${exportConfig.reportType}-report-${new Date().toISOString().split('T')[0]}.csv`);
+        }
+      } else {
+        // Generate CSV file
+        generateCSVFile(reportMetadata, headers, reportData, `${exportConfig.reportType}-report-${new Date().toISOString().split('T')[0]}.csv`);
       }
-
-      // Step 9: Download Report
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `inventory-report-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
       
-      // Step 10: Show Export Success
-      alert(`Inventory report exported successfully!\n\nReport Details:\n- Total Items: ${filteredInventory.length}\n- File Size: ${(blob.size / 1024).toFixed(2)} KB\n- Format: CSV`);
+      alert(`${exportConfig.reportType.toUpperCase()} report exported successfully!\n\nReport Details:\n- Items: ${dataToExport.length}\n- Format: ${exportConfig.format.toUpperCase()}`);
       
     } catch (error) {
-      // Handle Export Failure (Alternative flow)
       console.error('Export failed:', error);
-      alert('Export failed. Please try again or contact IT support if the problem persists.');
+      alert('Export failed. Please try again or contact IT support.');
     } finally {
       setLoading(false);
+      setShowExportModal(false);
     }
   };
 
@@ -255,7 +340,7 @@ export default function InventoryPage() {
           productsRes.json()
         ]);
 
-        // FIX: Access the inventory array from the response object
+        // Access the inventory array from the response object
         const inventoryData = inventoryResult.inventory || [];
         const productsData = productsResult.products || [];
 
@@ -265,7 +350,6 @@ export default function InventoryPage() {
             ...item,
             name: product?.name || 'Unknown Product',
             category: product?.category || 'Unknown',
-            // Get actual cost from Product table price and ensure it's a number
             cost: Number(product?.price || 0),
             threshold: item.threshold || 30,
             lastRestocked: item.lastRestocked || new Date().toISOString().split('T')[0]
@@ -300,7 +384,6 @@ export default function InventoryPage() {
     setSelectedItem(null);
   };
 
-  // FIXED: Actually call the API for restock
   const handleRestockSubmit = async (newQuantity: number) => {
     if (!selectedItem) return;
 
@@ -339,7 +422,6 @@ export default function InventoryPage() {
     }
   };
 
-  // FIXED: Actually call the API for edit - MODIFIED to only send quantity, threshold, and cost
   const handleEditSubmit = async (updatedItem: Inventory) => {
     if (!selectedItem) return;
 
@@ -355,7 +437,6 @@ export default function InventoryPage() {
           quantity: updatedItem.quantity,
           threshold: updatedItem.threshold,
           cost: updatedItem.cost
-          // Removed expiryDate and supplier since they don't exist in DB
         }),
       });
 
@@ -388,13 +469,16 @@ export default function InventoryPage() {
           <p className="text-gray-700">Monitor stock levels and manage inventory</p>
         </div>
         <div className="flex gap-3">
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </button>
+          {/* Conditionally render Export button only for admin */}
+          {user?.role === 'admin' && (
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          )}
           <button 
             onClick={handleSyncInventory}
             className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
@@ -597,6 +681,17 @@ export default function InventoryPage() {
         </div>
       )}
 
+      {/* Export Modal */}
+      {showExportModal && user?.role === 'admin' && (
+        <ExportModal
+          onClose={() => setShowExportModal(false)}
+          onExport={processExport}
+          categories={categories}
+          inventoryList={inventoryList}
+          getStatus={getStatus}
+        />
+      )}
+
       {/* Restock Modal */}
       {showModal && selectedItem && modalType === 'restock' && (
         <RestockModal 
@@ -606,7 +701,7 @@ export default function InventoryPage() {
         />
       )}
 
-      {/* Edit Modal - MODIFIED to remove expiryDate and supplier */}
+      {/* Edit Modal */}
       {showModal && selectedItem && modalType === 'edit' && (
         <EditInventoryModal 
           item={selectedItem} 
@@ -617,6 +712,254 @@ export default function InventoryPage() {
     </main>
   );
 }
+
+function ExportModal({ 
+  onClose, 
+  onExport, 
+  categories, 
+  inventoryList,
+  getStatus 
+}: {
+  onClose: () => void;
+  onExport: (config: ExportConfig) => void;
+  categories: (string | undefined)[]; // Fixed type to accept undefined values
+  inventoryList: Inventory[];
+  getStatus: (quantity: number, threshold?: number) => string;
+}) {
+  const [exportConfig, setExportConfig] = useState<ExportConfig>({
+    reportType: 'detailed',
+    format: 'csv',
+    category: 'All Categories',
+    status: 'All Status',
+    dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    dateTo: new Date().toISOString().split('T')[0],
+    stockThreshold: 0,
+    includeMetadata: true
+  });
+
+  const handleExport = () => {
+    if (!exportConfig.reportType || !exportConfig.format) {
+      alert('Please select report type and format.');
+      return;
+    }
+    onExport(exportConfig);
+  };
+
+  const getPreviewCount = () => {
+    let count = inventoryList.length;
+    if (exportConfig.category !== 'All Categories') {
+      count = inventoryList.filter(item => item.category === exportConfig.category).length;
+    }
+    if (exportConfig.status !== 'All Status') {
+      count = inventoryList.filter(item => getStatus(item.quantity, item.threshold) === exportConfig.status).length;
+    }
+    return count;
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+        <div className="flex items-center justify-between p-6 border-b bg-white">
+          <h2 className="text-2xl font-bold text-gray-900">Export Inventory Report</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+
+        <div className="p-6 bg-white space-y-6">
+          {/* Report Type Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-800 mb-3">Report Type</label>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="reportType"
+                  value="summary"
+                  checked={exportConfig.reportType === 'summary'}
+                  onChange={(e) => setExportConfig({...exportConfig, reportType: e.target.value as 'summary'})}
+                  className="mr-3"
+                />
+                <div>
+                  <div className="font-medium">Summary Report</div>
+                  <div className="text-sm text-gray-500">Basic inventory overview</div>
+                </div>
+              </label>
+              
+              <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="reportType"
+                  value="detailed"
+                  checked={exportConfig.reportType === 'detailed'}
+                  onChange={(e) => setExportConfig({...exportConfig, reportType: e.target.value as 'detailed'})}
+                  className="mr-3"
+                />
+                <div>
+                  <div className="font-medium">Detailed Report</div>
+                  <div className="text-sm text-gray-500">Complete inventory data</div>
+                </div>
+              </label>
+              
+              <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="reportType"
+                  value="lowstock"
+                  checked={exportConfig.reportType === 'lowstock'}
+                  onChange={(e) => setExportConfig({...exportConfig, reportType: e.target.value as 'lowstock'})}
+                  className="mr-3"
+                />
+                <div>
+                  <div className="font-medium">Low Stock Report</div>
+                  <div className="text-sm text-gray-500">Items below threshold</div>
+                </div>
+              </label>
+              
+              <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="reportType"
+                  value="outofstock"
+                  checked={exportConfig.reportType === 'outofstock'}
+                  onChange={(e) => setExportConfig({...exportConfig, reportType: e.target.value as 'outofstock'})}
+                  className="mr-3"
+                />
+                <div>
+                  <div className="font-medium">Out of Stock Report</div>
+                  <div className="text-sm text-gray-500">Items needing restocking</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-2">Category Filter</label>
+              <select
+                value={exportConfig.category}
+                onChange={(e) => setExportConfig({...exportConfig, category: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              >
+                {categories.map((category, index) => (
+                  <option key={index} value={category || 'Unknown'}>{category || 'Unknown'}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-2">Status Filter</label>
+              <select
+                value={exportConfig.status}
+                onChange={(e) => setExportConfig({...exportConfig, status: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              >
+                <option value="All Status">All Status</option>
+                <option value="IN STOCK">In Stock</option>
+                <option value="LOW STOCK">Low Stock</option>
+                <option value="OUT OF STOCK">Out of Stock</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-2">From Date</label>
+              <input
+                type="date"
+                value={exportConfig.dateFrom}
+                onChange={(e) => setExportConfig({...exportConfig, dateFrom: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-2">To Date</label>
+              <input
+                type="date"
+                value={exportConfig.dateTo}
+                onChange={(e) => setExportConfig({...exportConfig, dateTo: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Export Format */}
+          <div>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Export Format</label>
+            <div className="flex gap-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="format"
+                  value="csv"
+                  checked={exportConfig.format === 'csv'}
+                  onChange={(e) => setExportConfig({...exportConfig, format: e.target.value as 'csv'})}
+                  className="mr-2"
+                />
+                CSV (Recommended)
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="format"
+                  value="xlsx"
+                  checked={exportConfig.format === 'xlsx'}
+                  onChange={(e) => setExportConfig({...exportConfig, format: e.target.value as 'xlsx'})}
+                  className="mr-2"
+                />
+                Excel
+              </label>
+            </div>
+          </div>
+
+          {/* Preview */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-medium text-gray-800 mb-2">Export Preview</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Report Type:</span>
+                <span className="ml-2 font-medium">{exportConfig.reportType.toUpperCase()}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Format:</span>
+                <span className="ml-2 font-medium">{exportConfig.format.toUpperCase()}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Items to Export:</span>
+                <span className="ml-2 font-medium">{getPreviewCount()}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Date Range:</span>
+                <span className="ml-2 font-medium">{exportConfig.dateFrom} to {exportConfig.dateTo}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={handleExport}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            >
+              <Download className="w-4 h-4" />
+              Generate & Download Report
+            </button>
+            <button
+              onClick={onClose}
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // Restock Modal Component
 function RestockModal({ item, onClose, onSubmit }: { 
@@ -686,7 +1029,7 @@ function RestockModal({ item, onClose, onSubmit }: {
   );
 }
 
-// Edit Inventory Modal Component - MODIFIED to remove expiryDate and supplier fields
+// Edit Inventory Modal Component
 function EditInventoryModal({ item, onClose, onSubmit }: { 
   item: Inventory; 
   onClose: () => void; 
@@ -696,7 +1039,6 @@ function EditInventoryModal({ item, onClose, onSubmit }: {
     quantity: item.quantity || 0,
     threshold: item.threshold || 30,
     cost: item.cost || 0
-    // Removed expiryDate and supplier
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -777,3 +1119,103 @@ function EditInventoryModal({ item, onClose, onSubmit }: {
     </div>
   );
 }
+const generateCSVFile = (metadata: (string | number)[][], headers: string[], data: (string | number)[][], filename: string) => {
+  // Convert metadata to CSV format
+  const metadataCSV = metadata.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+  
+  // Convert data to CSV format
+  const headersCSV = headers.map(header => `"${header}"`).join(',');
+  const dataCSV = data.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+  
+  const csvContent = metadataCSV + '\n' + headersCSV + '\n' + dataCSV;
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  downloadFile(blob, filename);
+};
+
+const generateExcelFile = async (metadata: (string | number)[][], headers: string[], data: (string | number)[][], filename: string) => {
+  try {
+    // Create a simple HTML table that Excel can interpret
+    let htmlContent = `
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            .metadata { font-weight: bold; color: #0066CC; }
+            .header { font-weight: bold; background-color: #E0E0E0; }
+            table { border-collapse: collapse; width: 100%; }
+            td, th { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          </style>
+        </head>
+        <body>
+          <table>
+    `;
+
+    // Add metadata rows
+    metadata.forEach(row => {
+      htmlContent += '<tr>';
+      row.forEach(cell => {
+        const cellValue = cell ? escapeHtml(cell.toString()) : '';
+        htmlContent += `<td class="metadata">${cellValue}</td>`;
+      });
+      htmlContent += '</tr>';
+    });
+
+    // Add empty row
+    htmlContent += '<tr><td colspan="10">&nbsp;</td></tr>';
+
+    // Add header row
+    htmlContent += '<tr>';
+    headers.forEach(header => {
+      htmlContent += `<th class="header">${escapeHtml(header)}</th>`;
+    });
+    htmlContent += '</tr>';
+
+    // Add data rows
+    data.forEach(row => {
+      htmlContent += '<tr>';
+      row.forEach(cell => {
+        const cellValue = cell?.toString() || '';
+        htmlContent += `<td>${escapeHtml(cellValue)}</td>`;
+      });
+      htmlContent += '</tr>';
+    });
+
+    htmlContent += `
+          </table>
+        </body>
+      </html>
+    `;
+
+    // Create blob with correct MIME type for Excel
+    const blob = new Blob([htmlContent], { 
+      type: 'application/vnd.ms-excel;charset=utf-8;' 
+    });
+    
+    downloadFile(blob, filename.replace('.xlsx', '.xls'));
+    
+  } catch (error) {
+    console.error('Excel generation failed:', error);
+    throw error;
+  }
+};
+
+const escapeHtml = (unsafe: string): string => {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+const downloadFile = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+};
