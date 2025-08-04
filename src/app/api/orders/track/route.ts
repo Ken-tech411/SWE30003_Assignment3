@@ -24,14 +24,19 @@ export async function GET(request: NextRequest) {
 
     // Fetch order items for this order
     const items = await query(`
-      SELECT oi.orderItemId, oi.productId, oi.quantity, oi.unitPrice as price, 
-             p.name as productName, p.description as productDescription
+      SELECT oi.orderItemId, oi.productId, oi.quantity, oi.unitPrice, 
+             p.name, p.description
       FROM OrderItem oi
       JOIN Product p ON oi.productId = p.productId
       WHERE oi.orderId = ?
     `, [orderId]) as any[]
 
-    order.items = items
+    order.items = items.map(item => ({
+      productId: item.productId,
+      name: item.name,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity
+    }))
 
     return NextResponse.json(order)
   } catch (error) {

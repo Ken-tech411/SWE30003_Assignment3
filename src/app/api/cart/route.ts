@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { query } from '@/lib/db'
+import pool from '@/lib/db'
 
 interface CartItem {
   cartId?: number
@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const result = await query(
+    // FIX: Destructure to get only rows
+    const [rows] = await pool.query(
       `SELECT c.cartId, c.customerId, c.productId, c.quantity, c.createdAt,
               p.productId, p.name, p.price, p.description, p.requiresPrescription
        FROM Cart c
@@ -59,11 +60,11 @@ export async function GET(request: NextRequest) {
       [customerId]
     )
 
-    if (!isArrayOfCartItems(result)) {
+    if (!isArrayOfCartItems(rows)) {
       throw new Error('Unexpected query result format')
     }
 
-    return NextResponse.json({ cartItems: result })
+    return NextResponse.json({ cartItems: rows })
   } catch (error: unknown) {
     console.error('Error fetching cart items:', error)
     return NextResponse.json(
@@ -82,58 +83,49 @@ export async function POST(request: NextRequest) {
 
     if (!customerId || !productId || quantity === undefined) {
       return NextResponse.json(
-        {
-          error: 'Missing required fields: customerId, productId, or quantity',
-        },
+        { error: 'Missing required fields: customerId, productId, or quantity' },
         { status: 400 }
       )
     }
 
     // Check if product requires prescription
-    const productResult = await query(
+    const [productRow] = await pool.query(
       `SELECT requiresPrescription FROM Product WHERE productId = ?`,
       [productId]
-    )
-
-    const [product] = productResult as { requiresPrescription: boolean }[]
+    ) as any[]
+    const product = productRow?.[0]
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
     if (product.requiresPrescription) {
-      const prescriptionResult = await query(
-        `SELECT 1 FROM Prescription 
-         WHERE customerId = ? AND productId = ? AND approved = 1`,
-        [customerId, productId]
-      )
-
-      if (!Array.isArray(prescriptionResult) || prescriptionResult.length === 0) {
+      // Check if customer has at least one approved prescription
+      const [prescriptions] = await pool.query(
+        `SELECT 1 FROM Prescription WHERE customerId = ? AND approved = 1 LIMIT 1`,
+        [customerId]
+      ) as any[]
+      if (!prescriptions || prescriptions.length === 0) {
         return NextResponse.json(
-          { error: 'This product requires an approved prescription' },
+          { error: 'You need an approved prescription to buy this product.' },
           { status: 403 }
         )
       }
     }
 
-    // Check if item already exists in cart
-    const existingItemResult = await query(
+    // Add to cart logic (existing)
+    const [existing] = await pool.query(
       `SELECT * FROM Cart WHERE customerId = ? AND productId = ?`,
       [customerId, productId]
-    )
+    ) as any[]
 
-    if (!Array.isArray(existingItemResult)) {
-      throw new Error('Unexpected existing item query result format')
-    }
-
-    if (existingItemResult.length > 0) {
-      await query(
-        `UPDATE Cart SET quantity = quantity + ? 
-         WHERE customerId = ? AND productId = ?`,
+    if (existing.length > 0) {
+      await pool.query(
+        `UPDATE Cart SET quantity = quantity + ? WHERE customerId = ? AND productId = ?`,
         [quantity, customerId, productId]
       )
     } else {
-      await query(
+      await pool.query(
         `INSERT INTO Cart (customerId, productId, quantity, createdAt)
          VALUES (?, ?, ?, NOW())`,
         [customerId, productId, quantity]
@@ -165,12 +157,12 @@ export async function PUT(request: NextRequest) {
     }
 
     if (quantity <= 0) {
-      await query(`DELETE FROM Cart WHERE customerId = ? AND productId = ?`, [
+      await pool.query(`DELETE FROM Cart WHERE customerId = ? AND productId = ?`, [
         customerId,
         productId,
       ])
     } else {
-      await query(
+      await pool.query(
         `UPDATE Cart SET quantity = ? WHERE customerId = ? AND productId = ?`,
         [quantity, customerId, productId]
       )
@@ -196,12 +188,12 @@ export async function DELETE(request: NextRequest) {
     const customerId = searchParams.get('customerId')
 
     if (cartId) {
-      await query(`DELETE FROM Cart WHERE cartId = ?`, [cartId])
+      await pool.query(`DELETE FROM Cart WHERE cartId = ?`, [cartId])
       return NextResponse.json({ success: true })
     }
 
     if (customerId) {
-      await query(`DELETE FROM Cart WHERE customerId = ?`, [customerId])
+      await pool.query(`DELETE FROM Cart WHERE customerId = ?`, [customerId])
       return NextResponse.json({ success: true })
     }
 

@@ -29,6 +29,20 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<{ [key: string]: number }>({});
+  const [approvedProductIds, setApprovedProductIds] = useState<number[]>([]);
+  const [hasApprovedPrescription, setHasApprovedPrescription] = useState(false);
+
+  // Fetch if user has at least one approved prescription
+  useEffect(() => {
+    const fetchApprovedPrescriptions = async () => {
+      if (user?.customerId) {
+        const res = await fetch(`/api/prescriptions?customerId=${user.customerId}&approved=1`);
+        const data = await res.json();
+        setHasApprovedPrescription(Array.isArray(data.data) && data.data.length > 0);
+      }
+    };
+    fetchApprovedPrescriptions();
+  }, [user]);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -133,6 +147,12 @@ export default function ProductsPage() {
     } catch (error) {
       alert("Failed to add to cart.");
     }
+  };
+
+  const canAddToCart = (product: Product) => {
+    if (!product.requiresPrescription) return true;
+    if (!user || !user.customerId) return false;
+    return hasApprovedPrescription;
   };
 
   // Staff modal handlers
@@ -344,14 +364,25 @@ export default function ProductsPage() {
                   {/* Add to Cart Button */}
                   <button
                     onClick={() => addToCart(product.productId)}
-                    disabled={isOutOfStock}
+                    disabled={isOutOfStock || !canAddToCart(product)}
                     className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                      isOutOfStock
+                      isOutOfStock || !canAddToCart(product)
                         ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                         : 'bg-orange-500 text-white hover:bg-orange-600'
                     }`}
+                    title={
+                      !canAddToCart(product)
+                        ? 'You need an approved prescription to buy this product'
+                        : isOutOfStock
+                        ? 'Out of Stock'
+                        : ''
+                    }
                   >
-                    {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                    {isOutOfStock
+                      ? 'Out of Stock'
+                      : !canAddToCart(product)
+                      ? 'Prescription Required'
+                      : 'Add to Cart'}
                   </button>
                 </div>
               </div>
