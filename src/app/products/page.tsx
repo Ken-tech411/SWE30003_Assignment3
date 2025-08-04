@@ -1,4 +1,4 @@
-// Role-Based Products Management Page
+// Products Management Page
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -29,20 +29,6 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<{ [key: string]: number }>({});
-  const [approvedProductIds, setApprovedProductIds] = useState<number[]>([]);
-  const [hasApprovedPrescription, setHasApprovedPrescription] = useState(false);
-
-  // Fetch if user has at least one approved prescription
-  useEffect(() => {
-    const fetchApprovedPrescriptions = async () => {
-      if (user?.customerId) {
-        const res = await fetch(`/api/prescriptions?customerId=${user.customerId}&approved=1`);
-        const data = await res.json();
-        setHasApprovedPrescription(Array.isArray(data.data) && data.data.length > 0);
-      }
-    };
-    fetchApprovedPrescriptions();
-  }, [user]);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -147,12 +133,6 @@ export default function ProductsPage() {
     } catch (error) {
       alert("Failed to add to cart.");
     }
-  };
-
-  const canAddToCart = (product: Product) => {
-    if (!product.requiresPrescription) return true;
-    if (!user || !user.customerId) return false;
-    return hasApprovedPrescription;
   };
 
   // Staff modal handlers
@@ -281,10 +261,6 @@ export default function ProductsPage() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Browse Products</h1>
             <p className="text-gray-700">Find the products you need</p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <ShoppingCart className="w-4 h-4" />
-            <span>Cart items: {Object.values(cart).reduce((sum, qty) => sum + qty, 0)}</span>
-          </div>
         </div>
 
         {/* Search and Filters */}
@@ -361,29 +337,27 @@ export default function ProductsPage() {
                     </div>
                   )}
 
-                  {/* Add to Cart Button */}
-                  <button
-                    onClick={() => addToCart(product.productId)}
-                    disabled={isOutOfStock || !canAddToCart(product)}
-                    className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-                      isOutOfStock || !canAddToCart(product)
-                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                        : 'bg-orange-500 text-white hover:bg-orange-600'
-                    }`}
-                    title={
-                      !canAddToCart(product)
-                        ? 'You need an approved prescription to buy this product'
-                        : isOutOfStock
-                        ? 'Out of Stock'
-                        : ''
-                    }
-                  >
-                    {isOutOfStock
-                      ? 'Out of Stock'
-                      : !canAddToCart(product)
-                      ? 'Prescription Required'
-                      : 'Add to Cart'}
-                  </button>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleViewProduct(product)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View
+                    </button>
+                    <button
+                      onClick={() => addToCart(product.productId)}
+                      disabled={isOutOfStock}
+                      className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+                        isOutOfStock
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                          : 'bg-orange-500 text-white hover:bg-orange-600'
+                      }`}
+                    >
+                      {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -397,6 +371,15 @@ export default function ProductsPage() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
             <p className="text-gray-600">Try adjusting your search or filter criteria</p>
           </div>
+        )}
+
+        {/* Customer View Modal */}
+        {showModal && modalType === 'view' && selectedProduct && (
+          <CustomerProductViewModal
+            product={selectedProduct}
+            onClose={closeModal}
+            onAddToCart={addToCart}
+          />
         )}
       </main>
     );
@@ -782,6 +765,117 @@ function ProductFormModal({ product, onClose, onSubmit, title }: {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+// Customer Product View Modal Component
+function CustomerProductViewModal({ product, onClose, onAddToCart }: {
+  product: Product;
+  onClose: () => void;
+  onAddToCart: (productId: string) => void;
+}) {
+  const getStockStatus = (stock: number = 0) => {
+    if (stock === 0) return 'OUT OF STOCK';
+    if (stock <= 30) return 'LOW STOCK';
+    return 'IN STOCK';
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'IN STOCK': return 'bg-green-500 text-white';
+      case 'LOW STOCK': return 'bg-orange-500 text-white';
+      case 'OUT OF STOCK': return 'bg-red-500 text-white';
+      default: return 'bg-gray-500 text-white';
+    }
+  };
+
+  const status = getStockStatus(product.stock);
+  const isOutOfStock = status === 'OUT OF STOCK';
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+        <div className="flex items-center justify-between p-6 border-b bg-white">
+          <h2 className="text-2xl font-bold text-gray-900">Product Details</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+
+        <div className="p-6 bg-white">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-orange-50 rounded-lg p-12 flex items-center justify-center">
+              <Package className="w-16 h-16 text-orange-500" />
+            </div>
+
+            <div>
+              <div className="mb-4">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                  {status}
+                </span>
+              </div>
+
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">{product.name}</h3>
+              <p className="text-orange-600 font-medium mb-4">{product.category}</p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Price</label>
+                  <p className="text-2xl font-bold text-green-600">
+                    ${Number(product.price).toFixed(2)}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Stock Level</label>
+                  <p className="text-lg font-semibold text-gray-900">{product.stock || 0} units</p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Prescription Status</label>
+                  <p className={`text-sm font-medium ${product.requiresPrescription ? 'text-red-600' : 'text-green-600'}`}>
+                    {product.requiresPrescription ? 'Prescription Required' : 'Over-the-Counter'}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Product ID</label>
+                  <p className="text-gray-900 font-mono">{product.productId}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <label className="text-sm font-medium text-gray-600">Description</label>
+            <p className="text-gray-800 mt-2 leading-relaxed">{product.description}</p>
+          </div>
+
+          <div className="flex gap-3 mt-8">
+            <button
+              onClick={() => {
+                onAddToCart(product.productId);
+                onClose();
+              }}
+              disabled={isOutOfStock}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors font-medium ${
+                isOutOfStock
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-orange-500 text-white hover:bg-orange-600'
+              }`}
+            >
+              <ShoppingCart className="w-4 h-4" />
+              {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
+            </button>
+            <button
+              onClick={onClose}
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
