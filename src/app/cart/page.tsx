@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -32,14 +32,23 @@ export default function CartPage() {
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Always call hooks before any conditional return!
+  const [approvedPrescriptions, setApprovedPrescriptions] = useState([]);
 
   useEffect(() => {
     if (user && user.customerId) {
       fetchCartItems(user.customerId)
     }
   }, [user])
+
+  useEffect(() => {
+    async function fetchApprovedPrescriptions() {
+      if (!user?.customerId) return;
+      const res = await fetch(`/api/prescriptions?customerId=${user.customerId}&status=approved`);
+      const data = await res.json();
+      setApprovedPrescriptions(Array.isArray(data.data) ? data.data : []);
+    }
+    fetchApprovedPrescriptions();
+  }, [user?.customerId]);
 
   const fetchCartItems = async (cid: number) => {
     setLoading(true)
@@ -112,6 +121,7 @@ export default function CartPage() {
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const tax = subtotal * 0.1
   const total = subtotal + tax
+  const hasApprovedPrescription = approvedPrescriptions.length > 0
 
   // Only after all hooks, you can conditionally return UI
   if (!user) {
@@ -236,9 +246,9 @@ export default function CartPage() {
                   disabled={cartItems.length === 0 ||
                     cartItems.some(item => item.requiresPrescription)}
                 >
-                  {cartItems.some(item => item.requiresPrescription)
-                    ? "Complete Prescription First"
-                    : "Proceed to Checkout"}
+                  {hasApprovedPrescription
+                    ? "Proceed to Checkout"
+                    : "Complete Prescription First"}
                 </Button>
               </Link>
             </CardContent>

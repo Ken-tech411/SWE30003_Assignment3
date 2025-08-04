@@ -129,32 +129,115 @@ export default function InventoryPage() {
 
   const categories = ['All Categories', ...Array.from(new Set(inventoryList.map(item => item.category).filter(Boolean)))];
 
-  const handleExport = () => {
-    // Create CSV content - REMOVED SUPPLIER COLUMN
-    const headers = ['Product', 'Category', 'Current Stock', 'Threshold', 'Status', 'Last Restocked', 'Cost'];
-    const csvContent = [
-      headers.join(','),
-      ...filteredInventory.map(item => [
-        item.name,
-        item.category,
-        item.quantity,
-        `${item.threshold} - 300`,
-        getStatus(item.quantity, item.threshold),
-        item.lastRestocked,
-        `${(item.cost || 0).toFixed(2)}`
-      ].join(','))
-    ].join('\n');
+  const handleExport = async () => {
+    try {
+      // Step 1: Access Export or Share Report (from use case)
+      setLoading(true);
+      
+      // Step 2: Select Report Parameters (Date range, filters, etc.)
+      const reportParameters = {
+        dateRange: new Date().toISOString().split('T')[0],
+        categoryFilter: categoryFilter,
+        statusFilter: statusFilter,
+        searchTerm: searchTerm,
+        totalItems: filteredInventory.length
+      };
 
-    // Download CSV
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `inventory-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
+      // Step 3: Validate Parameters
+      if (filteredInventory.length === 0) {
+        alert('No data available to export. Please adjust your filters.');
+        setLoading(false);
+        return;
+      }
+
+      // Step 4: Generate Report Data
+      const headers = [
+        'Product ID',
+        'Product Name', 
+        'Category',
+        'Current Stock',
+        'Threshold Range',
+        'Status',
+        'Trend',
+        'Last Restocked',
+        'Unit Cost ($)',
+        'Total Value ($)',
+        'Branch ID'
+      ];
+      
+      const reportData = filteredInventory.map(item => {
+        const status = getStatus(item.quantity, item.threshold);
+        const trend = item.quantity === 0 ? 'Critical' : 
+                    item.quantity <= (item.threshold || 30) ? 'Declining' : 'Stable';
+        const totalValue = item.quantity * (item.cost || 0);
+        
+        return [
+          `"${item.productId}"`,
+          `"${item.name}"`,
+          `"${item.category}"`,
+          `${item.quantity}`,
+          `"${item.threshold} - 300"`,
+          `"${status}"`,
+          `"${trend}"`,
+          `"${item.lastRestocked}"`,
+          `${(item.cost || 0).toFixed(2)}`,
+          `${totalValue.toFixed(2)}`,
+          `"${item.branchId}"`
+        ].join(',');
+      });
+
+      // Step 5: Create Report Header with metadata
+      const reportHeader = [
+        `# Long Chau Pharmacy Inventory Report`,
+        `# Generated on: ${new Date().toLocaleString()}`,
+        `# Report Parameters:`,
+        `# - Category Filter: ${categoryFilter}`,
+        `# - Status Filter: ${statusFilter}`,
+        `# - Search Term: ${searchTerm || 'None'}`,
+        `# - Total Items: ${filteredInventory.length}`,
+        `# - Total Value: $${totalValue.toFixed(2)}`,
+        `# - Low Stock Items: ${lowStockItems}`,
+        `# - Out of Stock Items: ${outOfStockItems}`,
+        `#`,
+        ''
+      ].join('\n');
+
+      // Step 6: Combine Report Content
+      const csvContent = reportHeader + [
+        headers.join(','),
+        ...reportData
+      ].join('\n');
+
+      // Step 7: Provide Export Options (CSV format)
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Step 8: Export Function Fails or File Too Large (Alternative flow handling)
+      if (blob.size > 10 * 1024 * 1024) { // 10MB limit
+        alert('Export file is too large. Please apply more specific filters to reduce data size.');
+        setLoading(false);
+        return;
+      }
+
+      // Step 9: Download Report
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `inventory-report-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      // Step 10: Show Export Success
+      alert(`Inventory report exported successfully!\n\nReport Details:\n- Total Items: ${filteredInventory.length}\n- File Size: ${(blob.size / 1024).toFixed(2)} KB\n- Format: CSV`);
+      
+    } catch (error) {
+      // Handle Export Failure (Alternative flow)
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again or contact IT support if the problem persists.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSyncInventory = async () => {

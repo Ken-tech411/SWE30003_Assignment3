@@ -45,6 +45,11 @@ export default function ReturnsPage() {
   const [pageSize] = useState(5)
   const [total, setTotal] = useState(0)
 
+  // Pagination for staff view
+  const [staffPage, setStaffPage] = useState(1)
+  const [staffPageSize] = useState(10)
+  const [staffTotal, setStaffTotal] = useState(0)
+
   // Modal state for View Details
   const [viewDetailOpen, setViewDetailOpen] = useState(false)
   const [selectedReturn, setSelectedReturn] = useState<ReturnItem | null>(null)
@@ -89,7 +94,14 @@ export default function ReturnsPage() {
         return
       }
       const data = await res.json()
-      setOrderProducts(data.items || [])
+      // Fix: handle both { items: [...] } and { ...order, items: [...] }
+      if (Array.isArray(data.items)) {
+        setOrderProducts(data.items)
+      } else if (Array.isArray(data.order?.items)) {
+        setOrderProducts(data.order.items)
+      } else {
+        setOrderProducts([])
+      }
       setOrderError(null)
     }
     validateOrder()
@@ -103,7 +115,7 @@ export default function ReturnsPage() {
       fetchAllReturns()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, page])
+  }, [user, page, staffPage])
 
   // Refetch staff returns on filter change
   useEffect(() => {
@@ -134,12 +146,15 @@ export default function ReturnsPage() {
     const statusParams = staffStatusFilters.map(s => `status=${encodeURIComponent(s)}`).join('&');
     const orderIdParam = debouncedStaffOrderId ? `&orderId=${encodeURIComponent(debouncedStaffOrderId)}` : '';
     const customerIdParam = debouncedStaffCustomerId ? `&customerId=${encodeURIComponent(debouncedStaffCustomerId)}` : '';
-    const query = [statusParams, orderIdParam, customerIdParam].filter(Boolean).join('&');
+    const pageParam = `&page=${staffPage}`;
+    const pageSizeParam = `&pageSize=${staffPageSize}`;
+    const query = [statusParams, orderIdParam, customerIdParam, pageParam, pageSizeParam].filter(Boolean).join('&');
     try {
       const response = await fetch(`/api/returns?${query}`);
       const data = await response.json();
       setStaffReturns(data.returns || []);
       setStats(data.stats || { pending: 0, approved: 0, rejected: 0, totalRefunds: 0 });
+      setStaffTotal(data.total || (Array.isArray(data.returns) ? data.returns.length : 0));
     } catch (error) {
       console.error('Error fetching all returns:', error);
     } finally {
@@ -247,11 +262,7 @@ export default function ReturnsPage() {
   }
 
   // --- Only change below: filter customerReturns for current user ---
-  const filteredCustomerReturns = customerReturns.filter(
-    (item) =>
-      item.customerId === user?.customerId &&
-      (user?.linkedId === undefined || item.linkedId === undefined || item.linkedId === user.linkedId)
-  );
+  const filteredCustomerReturns = customerReturns; // Already filtered by backend
   // --- End change ---
 
   if (user === undefined) {
@@ -471,6 +482,46 @@ export default function ReturnsPage() {
                 ))
               )}
             </div>
+            {/* --- Staff Pagination Controls --- */}
+            {staffReturns.length > 0 && (
+              <div className="flex justify-center items-center space-x-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={staffPage === 1}
+                  onClick={() => setStaffPage(1)}
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={staffPage === 1}
+                  onClick={() => setStaffPage((prev) => Math.max(1, prev - 1))}
+                >
+                  &lt;
+                </Button>
+                <span className="px-2">
+                  Page {staffPage} of {Math.ceil(staffTotal / staffPageSize) || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={staffPage === Math.ceil(staffTotal / staffPageSize) || staffTotal === 0}
+                  onClick={() => setStaffPage((prev) => Math.min(Math.ceil(staffTotal / staffPageSize), prev + 1))}
+                >
+                  &gt;
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={staffPage === Math.ceil(staffTotal / staffPageSize) || staffTotal === 0}
+                  onClick={() => setStaffPage(Math.max(1, Math.ceil(staffTotal / staffPageSize)))}
+                >
+                  Last
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           // Customer: Show customer view directly, no tabs
@@ -621,26 +672,42 @@ export default function ReturnsPage() {
                       </CardContent>
                     </Card>
                   ))}
-                  {/* Pagination controls */}
-                  <div className="flex justify-center items-center gap-2 mt-4">
+                  {/* --- Customer Pagination Controls --- */}
+                  <div className="flex justify-center items-center space-x-2 mt-4">
                     <Button
                       variant="outline"
                       size="sm"
                       disabled={page === 1}
-                      onClick={() => setPage(page - 1)}
+                      onClick={() => setPage(1)}
                     >
-                      Previous
+                      First
                     </Button>
-                    <span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === 1}
+                      onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    >
+                      &lt;
+                    </Button>
+                    <span className="px-2">
                       Page {page} of {Math.ceil(total / pageSize) || 1}
                     </span>
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={page * pageSize >= total}
-                      onClick={() => setPage(page + 1)}
+                      disabled={page === Math.ceil(total / pageSize) || total === 0}
+                      onClick={() => setPage((prev) => Math.min(Math.ceil(total / pageSize), prev + 1))}
                     >
-                      Next
+                      &gt;
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === Math.ceil(total / pageSize) || total === 0}
+                      onClick={() => setPage(Math.max(1, Math.ceil(total / pageSize)))}
+                    >
+                      Last
                     </Button>
                   </div>
                 </>

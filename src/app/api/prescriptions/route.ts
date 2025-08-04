@@ -32,6 +32,7 @@ export async function GET(request: Request) {
     const statuses = searchParams.getAll('status'); // e.g. ["approved", "pending"]
     const name = searchParams.get('name') || "";
     const prescriptionId = searchParams.get('prescriptionId');
+    const customerId = searchParams.get('customerId');
 
     // Build WHERE clause
     let where: string[] = [];
@@ -54,10 +55,14 @@ export async function GET(request: Request) {
       where.push("p.prescriptionId = ?");
       params.push(prescriptionId);
     }
-
-    // Only allow customer to see their own prescriptions
+    // Allow filtering by customerId from query param (for cart logic, etc)
+    if (customerId) {
+      where.push("p.customerId = ?");
+      params.push(customerId);
+    }
+    // Only allow customer to see their own prescriptions (UI)
     if (user && user.role === "customer" && user.linkedId) {
-      where.push("c.customerId = ?");
+      where.push("p.customerId = ?");
       params.push(user.linkedId);
     }
     // (Pharmacist/staff logic can be added here)
@@ -83,11 +88,8 @@ export async function GET(request: Request) {
         p.uploadDate,
         p.approved,
         p.pharmacistId,
-        c.name AS patientName,
-        c.phoneNumber AS patientPhoneNumber
+        p.customerId
       FROM Prescription p
-      LEFT JOIN \`Order\` o ON p.prescriptionId = o.prescriptionId
-      LEFT JOIN Customer c ON o.customerId = c.customerId
       ${whereClause}
       ORDER BY p.uploadDate DESC
       LIMIT ? OFFSET ?`,
@@ -115,26 +117,23 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const imageFile = formData.get('imageFile') as File | null;
+    const customerId = formData.get('customerId'); // from frontend
 
     let imageFileName = null;
     if (imageFile instanceof File) {
-      // Generate a unique filename to avoid collisions
       const ext = path.extname(imageFile.name);
       imageFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}${ext}`;
       const bytes = await imageFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
-
-      // Save to public/uploads (make sure this folder exists)
       const uploadDir = path.join(process.cwd(), 'public', 'uploads');
       await writeFile(path.join(uploadDir, imageFileName), buffer);
     }
 
-    // Only insert columns that exist in Prescription table
+    // Insert with customerId
     const [result]: any = await pool.query(
-      `INSERT INTO Prescription 
-       (imageFile, uploadDate, approved, pharmacistId) 
-       VALUES (?, NOW(), NULL, NULL)`,
-      [imageFileName]
+      `INSERT INTO Prescription (imageFile, uploadDate, approved, pharmacistId, customerId) 
+       VALUES (?, NOW(), NULL, NULL, ?)`,
+      [imageFileName, customerId]
     );
 
     return NextResponse.json(

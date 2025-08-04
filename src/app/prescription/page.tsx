@@ -150,21 +150,19 @@ export default function UploadPrescriptionPage() {
       return;
     }
     try {
-      const formDataToSend = new FormData()
-      formDataToSend.append('patientName', formData.patientName)
-      formDataToSend.append('phoneNumber', formData.phoneNumber)
-      formDataToSend.append('customerId', String(user.linkedId))
+      const formDataToSend = new FormData();
+      formDataToSend.append('customerId', String(user.linkedId));
       if (formData.imageFile) {
-        formDataToSend.append('imageFile', formData.imageFile)
+        formDataToSend.append('imageFile', formData.imageFile);
       }
 
       const response = await fetch('/api/prescriptions', {
         method: 'POST',
         body: formDataToSend
-      })
+      });
 
       if (response.ok) {
-        alert("Prescription submitted for review!")
+        alert("Prescription submitted for review!");
         setFormData({
           patientName: "",
           phoneNumber: "",
@@ -179,8 +177,7 @@ export default function UploadPrescriptionPage() {
           });
       }
     } catch (error) {
-      console.error('Upload failed:', error)
-      alert("Failed to submit prescription")
+      alert("Failed to submit prescription");
     }
   }
   // --- END CUSTOMER UPLOAD LOGIC ---
