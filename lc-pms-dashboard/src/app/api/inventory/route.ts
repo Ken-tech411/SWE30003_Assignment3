@@ -1,4 +1,4 @@
-// Inventory API Route
+// Inventory API Route - FIXED
 import { NextResponse } from 'next/server';
 import mysql from 'mysql2/promise';
 
@@ -59,7 +59,7 @@ export async function GET() {
   }
 }
 
-// PUT - Update inventory - FIXED
+// PUT - Update inventory - FIXED to only update existing columns
 export async function PUT(request: Request) {
   let conn;
   try {
@@ -109,8 +109,8 @@ export async function PUT(request: Request) {
       });
 
     } else if (body.type === 'edit') {
-      // Edit operation - update inventory details
-      const { inventoryId, quantity, threshold, expiryDate, cost, supplier } = body;
+      // Edit operation - FIXED to only update columns that exist in the database
+      const { inventoryId, quantity } = body;
 
       if (!inventoryId || quantity === undefined) {
         await conn.end();
@@ -120,32 +120,12 @@ export async function PUT(request: Request) {
         );
       }
 
-      console.log(`Editing inventory ${inventoryId} with data:`, { quantity, threshold, expiryDate, cost, supplier });
+      console.log(`Editing inventory ${inventoryId} with quantity:`, quantity);
       
-      // Build dynamic update query based on provided fields
-      let updateFields = ['stockQuantity = ?', 'updatedAt = NOW()'];
-      let updateValues = [quantity];
+      // Only update stockQuantity and updatedAt since these are the only editable fields in the Inventory table
+      const updateQuery = 'UPDATE Inventory SET stockQuantity = ?, updatedAt = NOW() WHERE inventoryId = ?';
+      const updateValues = [quantity, inventoryId];
 
-      if (threshold !== undefined) {
-        updateFields.push('threshold = ?');
-        updateValues.push(threshold);
-      }
-      if (expiryDate !== undefined && expiryDate !== '') {
-        updateFields.push('expiryDate = ?');
-        updateValues.push(expiryDate);
-      }
-      if (cost !== undefined) {
-        updateFields.push('cost = ?');
-        updateValues.push(cost);
-      }
-      if (supplier !== undefined && supplier !== '') {
-        updateFields.push('supplier = ?');
-        updateValues.push(supplier);
-      }
-
-      updateValues.push(inventoryId);
-
-      const updateQuery = `UPDATE Inventory SET ${updateFields.join(', ')} WHERE inventoryId = ?`;
       console.log('Update query:', updateQuery, 'Values:', updateValues);
 
       const [result] = await conn.execute(updateQuery, updateValues);

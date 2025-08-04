@@ -9,13 +9,12 @@ interface Inventory {
   productId: string;
   branchId: string;
   quantity: number;
-  expiryDate: string;
   threshold?: number;
   category?: string;
   name?: string;
   cost?: number;
-  supplier?: string;
   lastRestocked?: string;
+  // Removed expiryDate and supplier from interface
 }
 
 interface Product {
@@ -68,13 +67,13 @@ export default function InventoryPage() {
             ...item,
             name: product?.name || 'Unknown Product',
             category: product?.category || 'Unknown',
+            // Get actual cost from Product table price and ensure it's a number
+            cost: Number(product?.price || 0),
             // Add default values for fields that might not be in your DB
             quantity: item.quantity || 0,
             threshold: item.threshold || 30,
-            cost: item.cost || 0,
-            supplier: item.supplier || 'Unknown Supplier',
-            expiryDate: item.expiryDate || '',
             lastRestocked: item.lastRestocked || new Date().toISOString().split('T')[0]
+            // Removed supplier since we're removing it from display
           };
         });
 
@@ -130,8 +129,8 @@ export default function InventoryPage() {
   const categories = ['All Categories', ...Array.from(new Set(inventoryList.map(item => item.category).filter(Boolean)))];
 
   const handleExport = () => {
-    // Create CSV content
-    const headers = ['Product', 'Category', 'Current Stock', 'Threshold', 'Status', 'Last Restocked', 'Supplier', 'Cost'];
+    // Create CSV content - REMOVED SUPPLIER COLUMN
+    const headers = ['Product', 'Category', 'Current Stock', 'Threshold', 'Status', 'Last Restocked', 'Cost'];
     const csvContent = [
       headers.join(','),
       ...filteredInventory.map(item => [
@@ -141,8 +140,7 @@ export default function InventoryPage() {
         `${item.threshold} - 300`,
         getStatus(item.quantity, item.threshold),
         item.lastRestocked,
-        item.supplier,
-        `${item.cost?.toFixed(2)}`
+        `${(item.cost || 0).toFixed(2)}`
       ].join(','))
     ].join('\n');
 
@@ -179,9 +177,9 @@ export default function InventoryPage() {
             ...item,
             name: product?.name || 'Unknown Product',
             category: product?.category || 'Unknown',
+            // Get actual cost from Product table price and ensure it's a number
+            cost: Number(product?.price || 0),
             threshold: item.threshold || 30,
-            cost: item.cost || 0,
-            supplier: item.supplier || 'Unknown Supplier',
             lastRestocked: item.lastRestocked || new Date().toISOString().split('T')[0]
           };
         });
@@ -253,7 +251,7 @@ export default function InventoryPage() {
     }
   };
 
-  // FIXED: Actually call the API for edit
+  // FIXED: Actually call the API for edit - MODIFIED to only send quantity, threshold, and cost
   const handleEditSubmit = async (updatedItem: Inventory) => {
     if (!selectedItem) return;
 
@@ -268,9 +266,8 @@ export default function InventoryPage() {
           inventoryId: selectedItem.inventoryId,
           quantity: updatedItem.quantity,
           threshold: updatedItem.threshold,
-          expiryDate: updatedItem.expiryDate,
-          cost: updatedItem.cost,
-          supplier: updatedItem.supplier
+          cost: updatedItem.cost
+          // Removed expiryDate and supplier since they don't exist in DB
         }),
       });
 
@@ -444,7 +441,6 @@ export default function InventoryPage() {
                 <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Status</th>
                 <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Trend</th>
                 <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Last Restocked</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Supplier</th>
                 <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Cost</th>
                 <th className="text-left px-6 py-4 text-sm font-medium text-gray-800">Actions</th>
               </tr>
@@ -477,8 +473,7 @@ export default function InventoryPage() {
                       {getTrendIcon(item.quantity, item.threshold)}
                     </td>
                     <td className="px-6 py-4 text-gray-700">{item.lastRestocked}</td>
-                    <td className="px-6 py-4 text-gray-700">{item.supplier}</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">${item.cost?.toFixed(2)}</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">${(item.cost || 0).toFixed(2)}</td>
                     <td className="px-6 py-4">
                       <div className="flex gap-2">
                         <button 
@@ -523,7 +518,7 @@ export default function InventoryPage() {
         />
       )}
 
-      {/* Edit Modal */}
+      {/* Edit Modal - MODIFIED to remove expiryDate and supplier */}
       {showModal && selectedItem && modalType === 'edit' && (
         <EditInventoryModal 
           item={selectedItem} 
@@ -603,7 +598,7 @@ function RestockModal({ item, onClose, onSubmit }: {
   );
 }
 
-// Edit Inventory Modal Component
+// Edit Inventory Modal Component - MODIFIED to remove expiryDate and supplier fields
 function EditInventoryModal({ item, onClose, onSubmit }: { 
   item: Inventory; 
   onClose: () => void; 
@@ -612,9 +607,8 @@ function EditInventoryModal({ item, onClose, onSubmit }: {
   const [formData, setFormData] = useState({
     quantity: item.quantity || 0,
     threshold: item.threshold || 30,
-    expiryDate: item.expiryDate || '',
-    cost: item.cost || 0,
-    supplier: item.supplier || ''
+    cost: item.cost || 0
+    // Removed expiryDate and supplier
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -664,16 +658,6 @@ function EditInventoryModal({ item, onClose, onSubmit }: {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-800 mb-2">Expiry Date</label>
-            <input
-              type="date"
-              value={formData.expiryDate}
-              onChange={(e) => setFormData({...formData, expiryDate: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
-            />
-          </div>
-          
-          <div>
             <label className="block text-sm font-medium text-gray-800 mb-2">Cost ($)</label>
             <input
               type="number"
@@ -681,16 +665,6 @@ function EditInventoryModal({ item, onClose, onSubmit }: {
               min="0"
               value={formData.cost}
               onChange={(e) => setFormData({...formData, cost: parseFloat(e.target.value) || 0})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-800 mb-2">Supplier</label>
-            <input
-              type="text"
-              value={formData.supplier}
-              onChange={(e) => setFormData({...formData, supplier: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
             />
           </div>
