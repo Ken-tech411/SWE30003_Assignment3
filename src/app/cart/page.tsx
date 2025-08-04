@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Minus, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/context/AuthContext"
+import NavbarAuthButton from "@/components/NavbarAuthButton"
 
 interface CartItem {
   cartId: number
@@ -17,33 +19,27 @@ interface CartItem {
   requiresPrescription: boolean
 }
 
-// Type guard for error messages
 function isErrorWithMessage(error: unknown): error is { message: string } {
   return typeof error === 'object' && error !== null && 'message' in error;
 }
 
-// Helper function to get error message
 function getErrorMessage(error: unknown): string {
   if (isErrorWithMessage(error)) return error.message;
   return 'An unknown error occurred';
 }
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [customerId, setCustomerId] = useState<number | null>(null)
+  const { user } = useAuth();
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Always call hooks before any conditional return!
 
   useEffect(() => {
-    const storedId = localStorage.getItem("customerId")
-    if (storedId) {
-      setCustomerId(Number(storedId))
+    if (user && user.customerId) {
+      fetchCartItems(user.customerId)
     }
-  }, [])
-
-  useEffect(() => {
-    if (customerId) fetchCartItems(customerId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerId])
+  }, [user])
 
   const fetchCartItems = async (cid: number) => {
     setLoading(true)
@@ -64,8 +60,8 @@ export default function CartPage() {
   }
 
   const updateQuantity = async (cartId: number, productId: number, newQuantity: number) => {
-    if (newQuantity < 1) return
-    
+    if (!user?.customerId || newQuantity < 1) return
+
     try {
       const response = await fetch('/api/cart', {
         method: 'PUT',
@@ -73,19 +69,19 @@ export default function CartPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          customerId,
+          customerId: user.customerId,
           productId,
           quantity: newQuantity
         })
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to update quantity')
       }
-      
-      setCartItems((items) => 
-        items.map((item) => 
+
+      setCartItems((items) =>
+        items.map((item) =>
           item.cartId === cartId ? { ...item, quantity: newQuantity } : item
         )
       )
@@ -100,12 +96,12 @@ export default function CartPage() {
       const response = await fetch(`/api/cart?cartId=${cartId}`, {
         method: 'DELETE'
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to remove item')
       }
-      
+
       setCartItems((items) => items.filter((item) => item.cartId !== cartId))
     } catch (error: unknown) {
       console.error('Error removing item:', error)
@@ -116,6 +112,21 @@ export default function CartPage() {
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const tax = subtotal * 0.1
   const total = subtotal + tax
+
+  // Only after all hooks, you can conditionally return UI
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-end gap-4 p-4 border-b bg-white">
+          <NavbarAuthButton />
+        </div>
+        <div className="text-center mt-16">
+          <p className="mb-4 text-lg">Please sign in to view your cart.</p>
+          <NavbarAuthButton />
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -158,9 +169,9 @@ export default function CartPage() {
                       <p className="text-gray-600">${Number(item.price).toFixed(2)}</p>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => updateQuantity(item.cartId, item.productId, item.quantity - 1)}
                       >
                         <Minus className="w-4 h-4" />
@@ -172,9 +183,9 @@ export default function CartPage() {
                         className="w-16 text-center"
                         min="1"
                       />
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => updateQuantity(item.cartId, item.productId, item.quantity + 1)}
                       >
                         <Plus className="w-4 h-4" />
@@ -219,14 +230,14 @@ export default function CartPage() {
                 </div>
               </div>
               <Link href="/purchase" className="w-full">
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   size="lg"
-                  disabled={cartItems.length === 0 || 
+                  disabled={cartItems.length === 0 ||
                     cartItems.some(item => item.requiresPrescription)}
                 >
-                  {cartItems.some(item => item.requiresPrescription) 
-                    ? "Complete Prescription First" 
+                  {cartItems.some(item => item.requiresPrescription)
+                    ? "Complete Prescription First"
                     : "Proceed to Checkout"}
                 </Button>
               </Link>

@@ -1,4 +1,5 @@
 "use client"
+import { useAuth } from "@/context/AuthContext"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -6,35 +7,41 @@ import { Package, MapPin, Clock, User } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export default function TrackDeliveryPage() {
+  const { user } = useAuth();
   const searchParams = useSearchParams()
   const orderId = searchParams.get("orderId") || ""
 
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchOrder() {
       setLoading(true)
-      if (!orderId) {
+      setError(null)
+      if (!orderId || !user?.customerId) {
         setOrder(null)
         setLoading(false)
         return
       }
       try {
-        const res = await fetch(`/api/orders/track?orderId=${encodeURIComponent(orderId)}`)
+        const res = await fetch(`/api/orders/track?orderId=${encodeURIComponent(orderId)}&customerId=${user.customerId}`)
         if (!res.ok) {
+          const data = await res.json()
+          setError(data.error || "No tracking information found.")
           setOrder(null)
         } else {
           const data = await res.json()
           setOrder(data)
         }
       } catch (err) {
+        setError("No tracking information found.")
         setOrder(null)
       }
       setLoading(false)
     }
     fetchOrder()
-  }, [orderId])
+  }, [orderId, user])
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -53,6 +60,14 @@ export default function TrackDeliveryPage() {
     }
   }
 
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-red-500">Please sign in to track your orders.</div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -64,7 +79,9 @@ export default function TrackDeliveryPage() {
   if (!order) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-red-500">No tracking information found.</div>
+        <div className="text-center text-red-500">
+          {error || "No tracking information found."}
+        </div>
       </div>
     )
   }

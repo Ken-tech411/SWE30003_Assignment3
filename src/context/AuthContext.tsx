@@ -7,6 +7,9 @@ type User = {
   username: string;
   role: UserRole;
   linkedId: number;
+  name?: string;
+  customerId?: number;
+  pharmacistId?: number;
 } | null | undefined;
 
 type AuthContextType = {

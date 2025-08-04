@@ -30,7 +30,6 @@ export default function DeliveryPage() {
   const [customerDeliveries, setCustomerDeliveries] = useState<Delivery[]>([]);
   const [staffDeliveries, setStaffDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
-  const [customerId] = useState(1); // Default customer for demo
 
   // Pagination state for customer deliveries
   const [customerPage, setCustomerPage] = useState(1);
@@ -92,20 +91,23 @@ export default function DeliveryPage() {
   const fetchCustomerDeliveries = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/orders?customerId=${customerId}`);
+      const response = await fetch(`/api/orders?customerId=${user?.customerId}`);
       const data = await response.json();
+      // Filter to only show orders belonging to the logged-in user (defensive)
       setCustomerDeliveries(
-        (data.orders || []).map((order: any) => ({
-          id: order.orderId,
-          orderId: order.orderId,
-          customerName: order.customerName,
-          customerAddress: order.customerAddress || "",
-          status: order.status,
-          orderDate: order.orderDate,
-          totalAmount: order.totalAmount,
-          prescriptionId: order.prescriptionId,
-          customerId: order.customerId,
-        }))
+        (data.orders || [])
+          .filter((order: any) => order.customerId === user?.customerId)
+          .map((order: any) => ({
+            id: order.orderId,
+            orderId: order.orderId,
+            customerName: order.customerName,
+            customerAddress: order.customerAddress || "",
+            status: order.status,
+            orderDate: order.orderDate,
+            totalAmount: order.totalAmount,
+            prescriptionId: order.prescriptionId,
+            customerId: order.customerId,
+          }))
       );
     } catch (error) {
       console.error('Error fetching customer deliveries:', error);
@@ -189,11 +191,16 @@ export default function DeliveryPage() {
       setTrackError("Please enter an Order ID.");
       return;
     }
+    if (!user?.customerId) {
+      setTrackError("You must be signed in to track your order.");
+      return;
+    }
     try {
-      // Only search by orderId
-      const res = await fetch(`/api/orders/track?orderId=${encodeURIComponent(trackingId)}`);
+      // Pass both orderId and customerId
+      const res = await fetch(`/api/orders/track?orderId=${encodeURIComponent(trackingId)}&customerId=${user.customerId}`);
       if (!res.ok) {
-        setTrackError("Order not found. Please check your Order ID.");
+        const data = await res.json();
+        setTrackError(data.error || "Order not found. Please check your Order ID.");
         return;
       }
       const data = await res.json();
@@ -201,6 +208,7 @@ export default function DeliveryPage() {
         setTrackError("Order not found. Please check your Order ID.");
         return;
       }
+      // Route to the track page with both params (optional, but only orderId is needed for the page)
       router.push(`/delivery/track?orderId=${encodeURIComponent(trackingId)}`);
     } catch (err) {
       setTrackError("Order not found. Please check your Order ID.");
@@ -208,8 +216,11 @@ export default function DeliveryPage() {
   };
 
   // Pagination logic for customer deliveries (frontend)
-  const totalCustomerPages = Math.ceil(customerDeliveries.length / deliveriesPerPage);
-  const paginatedCustomerDeliveries = customerDeliveries.slice(
+  const filteredCustomerDeliveries = customerDeliveries.filter(
+    (delivery) => delivery.customerId === user?.customerId
+  );
+  const totalCustomerPages = Math.ceil(filteredCustomerDeliveries.length / deliveriesPerPage);
+  const paginatedCustomerDeliveries = filteredCustomerDeliveries.slice(
     (customerPage - 1) * deliveriesPerPage,
     customerPage * deliveriesPerPage
   );

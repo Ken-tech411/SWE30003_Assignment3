@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { CreditCard, Truck, MapPin } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from 'next/navigation'
+import { useAuth } from "@/context/AuthContext"
 
 interface CartItem {
   productId: number
@@ -21,11 +22,11 @@ interface CartItem {
 }
 
 export default function PurchasePage() {
+  const { user } = useAuth(); // <-- get user from context
   const [deliveryMethod, setDeliveryMethod] = useState("standard")
   const [paymentMethod, setPaymentMethod] = useState("card")
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [customerId, setCustomerId] = useState<number | null>(null)
   const [customerData, setCustomerData] = useState({
     firstName: "",
     lastName: "",
@@ -37,42 +38,13 @@ export default function PurchasePage() {
   })
   const router = useRouter()
 
-  // On mount, get or create customerId for this session
+  // Fetch cart and customer data for the logged-in user
   useEffect(() => {
-    const storedId = localStorage.getItem("customerId")
-    if (storedId) {
-      setCustomerId(Number(storedId))
-    } else {
-      // Create a new customer in the backend for this session
-      fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "Guest",
-          phoneNumber: "",
-          email: "",
-          address: "",
-          dateOfBirth: null,
-          gender: null
-        })
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.customerId) {
-            localStorage.setItem("customerId", data.customerId)
-            setCustomerId(data.customerId)
-          }
-        })
+    if (user?.customerId) {
+      fetchCartItems(user.customerId)
+      fetchCustomerData(user.customerId)
     }
-  }, [])
-
-  useEffect(() => {
-    if (customerId) {
-      fetchCartItems(customerId)
-      fetchCustomerData(customerId)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customerId])
+  }, [user])
 
   const fetchCartItems = async (cid: number) => {
     try {
@@ -127,6 +99,11 @@ export default function PurchasePage() {
   const total = subtotal + tax + deliveryPrice
 
   const handlePlaceOrder = async () => {
+    if (!user || !user.customerId) {
+      alert("You must be signed in to place an order.")
+      return
+    }
+
     if (!customerData.firstName || !customerData.email || !customerData.address) {
       alert("Please fill in all required fields")
       return
@@ -139,7 +116,7 @@ export default function PurchasePage() {
 
     try {
       // Update customer info before placing order
-      await fetch(`/api/customers/${customerId}`, {
+      await fetch(`/api/customers/${user.customerId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,7 +136,7 @@ export default function PurchasePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          customerId,
+          customerId: user.customerId, // <-- use from context
           totalAmount: total,
           status: 'Pending',
           shippingAddress: `${customerData.address}, ${customerData.city} ${customerData.zipCode}`,
@@ -187,7 +164,7 @@ export default function PurchasePage() {
 
         if (paymentResult.success) {
           // Clear cart after successful order
-          await fetch(`/api/cart?customerId=${customerId}`, {
+          await fetch(`/api/cart?customerId=${user.customerId}`, {
             method: 'DELETE'
           })
 

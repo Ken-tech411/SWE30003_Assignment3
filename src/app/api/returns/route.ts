@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
       `SELECT 
         r.*, 
         o.orderId, 
+        o.customerId,        
         c.name as customerName, 
         p.name as productName
       FROM \`Return\` r

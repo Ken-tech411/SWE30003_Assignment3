@@ -5,7 +5,17 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
   const [isSignup, setIsSignup] = useState(false);
-  const [form, setForm] = useState({ username: "", password: "", role: "customer" });
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
+    role: "customer",
+    name: "",
+    phoneNumber: "",
+    email: "",
+    address: "",
+    dateOfBirth: "",
+    gender: ""
+  });
   const [error, setError] = useState("");
   const router = useRouter();
   const { setUser } = useAuth();
@@ -57,14 +67,53 @@ export default function LoginPage() {
           onChange={e => setForm({ ...form, password: e.target.value })}
         />
         {isSignup && (
-          <select
-            className="w-full border px-3 py-2 rounded"
-            value={form.role}
-            onChange={e => setForm({ ...form, role: e.target.value })}
-          >
-            <option value="customer">Customer</option>
-            <option value="pharmacist">Pharmacist</option>
-          </select>
+          <>
+            <input
+              className="w-full border px-3 py-2 rounded"
+              placeholder="Full Name"
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+            />
+            <input
+              className="w-full border px-3 py-2 rounded"
+              placeholder="Phone Number"
+              value={form.phoneNumber}
+              onChange={e => setForm({ ...form, phoneNumber: e.target.value })}
+            />
+            <input
+              className="w-full border px-3 py-2 rounded"
+              placeholder="Email"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+            />
+            <input
+              className="w-full border px-3 py-2 rounded"
+              placeholder="Address"
+              value={form.address}
+              onChange={e => setForm({ ...form, address: e.target.value })}
+            />
+            <input
+              className="w-full border px-3 py-2 rounded"
+              type="date"
+              placeholder="Date of Birth"
+              value={form.dateOfBirth}
+              onChange={e => setForm({ ...form, dateOfBirth: e.target.value })}
+            />
+            <input
+              className="w-full border px-3 py-2 rounded"
+              placeholder="Gender"
+              value={form.gender}
+              onChange={e => setForm({ ...form, gender: e.target.value })}
+            />
+            <select
+              className="w-full border px-3 py-2 rounded"
+              value={form.role}
+              onChange={e => setForm({ ...form, role: e.target.value })}
+            >
+              <option value="customer">Customer</option>
+              <option value="pharmacist">Pharmacist</option>
+            </select>
+          </>
         )}
         {error && <div className="text-red-500">{error}</div>}
         <button className="w-full bg-blue-600 text-white py-2 rounded" type="submit">

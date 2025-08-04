@@ -5,23 +5,24 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url, 'http://localhost')
     const orderId = searchParams.get('orderId')
-    if (!orderId) {
-      return NextResponse.json({ error: 'Missing orderId' }, { status: 400 })
+    const customerId = searchParams.get('customerId')
+    if (!orderId || !customerId) {
+      return NextResponse.json({ error: 'Missing orderId or customerId' }, { status: 400 })
     }
 
-    // Fetch the order with customer info
+    // Fetch the order only if it belongs to this customer
     const [order] = await query(`
       SELECT o.*, c.name as customerName, c.email as customerEmail, c.address as customerAddress
       FROM \`Order\` o
       JOIN Customer c ON o.customerId = c.customerId
-      WHERE o.orderId = ?
-    `, [orderId]) as any[]
+      WHERE o.orderId = ? AND o.customerId = ?
+    `, [orderId, customerId]) as any[]
 
     if (!order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+      return NextResponse.json({ error: 'You can only track orders that belong to your account.' }, { status: 403 })
     }
 
-    // Fetch order items for this order (optional)
+    // Fetch order items for this order
     const items = await query(`
       SELECT oi.orderItemId, oi.productId, oi.quantity, oi.unitPrice as price, 
              p.name as productName, p.description as productDescription

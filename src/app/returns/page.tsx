@@ -23,6 +23,7 @@ interface ReturnItem {
   customerName?: string
   productName?: string
   customerId?: number
+  linkedId?: number
 }
 
 export default function ReturnsPage() {
@@ -37,7 +38,6 @@ export default function ReturnsPage() {
   const [customerReturns, setCustomerReturns] = useState<ReturnItem[]>([])
   const [staffReturns, setStaffReturns] = useState<ReturnItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [customerId, setCustomerId] = useState<number | null>(null)
 
   // Pagination for customer view
   const [page, setPage] = useState(1)
@@ -69,12 +69,6 @@ export default function ReturnsPage() {
     return () => clearTimeout(handler)
   }, [staffCustomerId])
 
-  // Load customerId from localStorage on mount
-  useEffect(() => {
-    const storedId = localStorage.getItem("customerId")
-    if (storedId) setCustomerId(Number(storedId))
-  }, [])
-
   // Fetch order products when orderId changes
   useEffect(() => {
     if (orderId) {
@@ -87,15 +81,15 @@ export default function ReturnsPage() {
     }
   }, [orderId])
 
-  // Fetch returns when user or customerId changes
+  // Fetch returns when user changes
   useEffect(() => {
-    if (user?.role === "customer" && customerId) {
+    if (user?.role === "customer" && user.customerId) {
       fetchCustomerReturns()
     } else if (user?.role === "pharmacist") {
       fetchAllReturns()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, customerId])
+  }, [user, page])
 
   // Refetch staff returns on filter change
   useEffect(() => {
@@ -105,27 +99,19 @@ export default function ReturnsPage() {
     // eslint-disable-next-line
   }, [staffStatusFilters, debouncedStaffOrderId, debouncedStaffCustomerId])
 
-  // Refetch customer returns on page change
-  useEffect(() => {
-    if (user?.role === "customer" && customerId) {
-      fetchCustomerReturns()
-    }
-    // eslint-disable-next-line
-  }, [page])
-
   const fetchCustomerReturns = async () => {
-    if (!customerId) return
-    setLoading(true)
+    if (!user?.customerId) return;
+    setLoading(true);
     try {
-      // Add pagination and sort by latest
-      const response = await fetch(`/api/returns?customerId=${customerId}&page=${page}&pageSize=${pageSize}&sort=desc`)
-      const data = await response.json()
-      setCustomerReturns(Array.isArray(data.returns) ? data.returns : [])
-      setTotal(data.total || (Array.isArray(data.returns) ? data.returns.length : 0))
+      const response = await fetch(`/api/returns?customerId=${user.customerId}&page=${page}&pageSize=${pageSize}&sort=desc`);
+      const data = await response.json();
+      setCustomerReturns(Array.isArray(data.returns) ? data.returns : []);
+      setTotal(data.total || (Array.isArray(data.returns) ? data.returns.length : 0));
     } catch (error) {
-      console.error('Error fetching customer returns:', error)
+      setCustomerReturns([]);
+      setTotal(0);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -241,6 +227,14 @@ export default function ReturnsPage() {
         return <RefreshCw className="w-4 h-4" />
     }
   }
+
+  // --- Only change below: filter customerReturns for current user ---
+  const filteredCustomerReturns = customerReturns.filter(
+    (item) =>
+      item.customerId === user?.customerId &&
+      (user?.linkedId === undefined || item.linkedId === undefined || item.linkedId === user.linkedId)
+  );
+  // --- End change ---
 
   if (user === undefined) {
     return (
@@ -545,7 +539,7 @@ export default function ReturnsPage() {
                     <p className="text-gray-500">Loading...</p>
                   </CardContent>
                 </Card>
-              ) : customerReturns.length === 0 ? (
+              ) : filteredCustomerReturns.length === 0 ? (
                 <Card>
                   <CardContent className="p-6 text-center">
                     <p className="text-gray-500">No return requests found</p>
@@ -553,7 +547,7 @@ export default function ReturnsPage() {
                 </Card>
               ) : (
                 <>
-                  {customerReturns.map((item) => (
+                  {filteredCustomerReturns.map((item) => (
                     <Card key={item.returnId} className="border rounded-lg mb-4">
                       <CardContent className="p-6">
                         <div className="flex items-center mb-2">

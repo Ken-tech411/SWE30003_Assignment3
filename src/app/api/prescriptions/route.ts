@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { writeFile } from 'fs/promises';
 import path from 'path';
+import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
   try {
@@ -10,9 +11,27 @@ export async function GET(request: Request) {
     const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
     const offset = (page - 1) * pageSize;
 
+    // Get user info from session/cookie
+    const cookieStore = await cookies();
+    const sessionToken =
+      request.headers.get('authorization') ||
+      cookieStore.get('sessionToken')?.value;
+
+    let user: any = null;
+    if (sessionToken) {
+      const [sessions] = await pool.query(
+        `SELECT u.userId, u.username, u.role, u.linkedId
+         FROM UserSession s
+         JOIN UserAccount u ON s.userId = u.userId
+         WHERE s.sessionToken = ? AND s.isActive = 1`,
+        [sessionToken]
+      ) as any[];
+      user = sessions[0] || null;
+    }
+
     const statuses = searchParams.getAll('status'); // e.g. ["approved", "pending"]
     const name = searchParams.get('name') || "";
-    const prescriptionId = searchParams.get('prescriptionId'); // <-- Get prescriptionId from query params
+    const prescriptionId = searchParams.get('prescriptionId');
 
     // Build WHERE clause
     let where: string[] = [];
@@ -32,9 +51,17 @@ export async function GET(request: Request) {
       params.push(`%${name}%`);
     }
     if (prescriptionId) {
-      where.push("p.prescriptionId = ?"); // <-- Add prescriptionId condition
+      where.push("p.prescriptionId = ?");
       params.push(prescriptionId);
     }
+
+    // Only allow customer to see their own prescriptions
+    if (user && user.role === "customer" && user.linkedId) {
+      where.push("c.customerId = ?");
+      params.push(user.linkedId);
+    }
+    // (Pharmacist/staff logic can be added here)
+
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     // Get total count for filtered set

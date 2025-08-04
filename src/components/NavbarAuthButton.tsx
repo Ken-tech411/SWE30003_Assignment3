@@ -22,7 +22,9 @@ export default function NavbarAuthButton() {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-700">Hello, {user.username}</span>
+      <span className="text-sm text-gray-700">
+        Hello, {user.role === "customer" && user.name ? user.name : user.username}
+      </span>
       <Button variant="outline" onClick={handleLogout}>
         Sign Out
       </Button>
