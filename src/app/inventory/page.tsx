@@ -1,4 +1,4 @@
-// Inventory Management Page - FIXED
+// Inventory Management Page
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -14,7 +14,6 @@ interface Inventory {
   name?: string;
   cost?: number;
   lastRestocked?: string;
-  // Removed expiryDate and supplier from interface
 }
 
 interface Product {
@@ -55,10 +54,13 @@ export default function InventoryPage() {
           throw new Error(`Failed to fetch products: ${productsRes.status}`);
         }
 
-        const [inventoryData, productsData] = await Promise.all([
+        const [inventoryResult, productsResult] = await Promise.all([
           inventoryRes.json(),
           productsRes.json()
         ]);
+
+        const inventoryData = inventoryResult.inventory || [];
+        const productsData = productsResult.products || [];
 
         // Merge inventory with product information
         const enrichedInventory = inventoryData.map((item: any) => {
@@ -73,7 +75,6 @@ export default function InventoryPage() {
             quantity: item.quantity || 0,
             threshold: item.threshold || 30,
             lastRestocked: item.lastRestocked || new Date().toISOString().split('T')[0]
-            // Removed supplier since we're removing it from display
           };
         });
 
@@ -166,10 +167,14 @@ export default function InventoryPage() {
       ]);
 
       if (inventoryRes.ok && productsRes.ok) {
-        const [inventoryData, productsData] = await Promise.all([
+        const [inventoryResult, productsResult] = await Promise.all([
           inventoryRes.json(),
           productsRes.json()
         ]);
+
+        // FIX: Access the inventory array from the response object
+        const inventoryData = inventoryResult.inventory || [];
+        const productsData = productsResult.products || [];
 
         const enrichedInventory = inventoryData.map((item: any) => {
           const product = productsData.find((p: any) => p.productId === item.productId);
