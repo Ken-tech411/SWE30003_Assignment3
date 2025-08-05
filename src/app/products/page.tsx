@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Plus, Filter, Eye, Edit, Package, X, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Filter, Eye, Edit, Package, X, ShoppingCart, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface Product {
@@ -263,6 +263,46 @@ export default function ProductsPage() {
     }
   };
 
+  const handleDeleteProduct = async (productToDelete: Product) => {
+    if (!confirm(`Are you sure you want to delete "${productToDelete.name}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/products?productId=${productToDelete.productId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete product');
+      }
+
+      // Remove product from local state
+      const updatedProducts = products.filter(p => p.productId !== productToDelete.productId);
+      setProducts(updatedProducts);
+      
+      // Reset to first page if current page becomes empty after filtering
+      const filteredUpdatedProducts = updatedProducts.filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.category.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = categoryFilter === 'All Categories' || product.category === categoryFilter;
+        const status = getStockStatus(product.stock);
+        const matchesStatus = statusFilter === 'All Status' || status === statusFilter;
+        return matchesSearch && matchesCategory && matchesStatus;
+      });
+      
+      const newTotalPages = Math.ceil(filteredUpdatedProducts.length / itemsPerPage);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      }
+      
+      alert('Product deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('Failed to delete product. Please try again.');
+    }
+  };
+
   // Pagination Component
   const PaginationComponent = () => {
     if (totalPages <= 1) return null;
@@ -491,7 +531,7 @@ export default function ProductsPage() {
     );
   }
 
-  // Staff View (existing implementation)
+  // Staff View (pharmacist implementation)
   return (
     <main className="p-6 bg-gray-50 min-h-screen">
       {/* Staff Header */}
@@ -603,17 +643,23 @@ export default function ProductsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleViewProduct(product)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
                 >
                   <Eye className="w-4 h-4" />
                   View
                 </button>
                 <button
                   onClick={() => handleEditProduct(product)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                 >
                   <Edit className="w-4 h-4" />
                   Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteProduct(product)}
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -639,6 +685,7 @@ export default function ProductsPage() {
           product={selectedProduct}
           onClose={closeModal}
           onEdit={() => handleEditProduct(selectedProduct)}
+          onDelete={handleDeleteProduct}
         />
       )}
 
@@ -663,10 +710,11 @@ export default function ProductsPage() {
 }
 
 // Product View Modal Component (for staff)
-function ProductViewModal({ product, onClose, onEdit }: {
+function ProductViewModal({ product, onClose, onEdit, onDelete }: {
   product: Product;
   onClose: () => void;
   onEdit: () => void;
+  onDelete?: (product: Product) => void;
 }) {
   const getStockStatus = (stock: number = 0) => {
     if (stock === 0) return 'OUT OF STOCK';
@@ -731,7 +779,7 @@ function ProductViewModal({ product, onClose, onEdit }: {
 
                 <div>
                   <label className="text-sm font-medium text-gray-600">Product ID</label>
-                  <p className="text-gray-900 font-mono">{product.productId}</p>
+                  <p className="text-gray-900 text-base">{product.productId}</p>
                 </div>
               </div>
             </div>
@@ -753,6 +801,18 @@ function ProductViewModal({ product, onClose, onEdit }: {
               <Edit className="w-4 h-4" />
               Edit Product
             </button>
+            {onDelete && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onDelete(product);
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
@@ -951,7 +1011,7 @@ function CustomerProductViewModal({ product, onClose, onAddToCart }: {
 
                 <div>
                   <label className="text-sm font-medium text-gray-600">Product ID</label>
-                  <p className="text-gray-900 font-mono">{product.productId}</p>
+                  <p className="text-gray-900 text-base">{product.productId}</p>
                 </div>
               </div>
             </div>
