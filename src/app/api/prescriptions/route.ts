@@ -74,8 +74,7 @@ export async function GET(request: Request) {
     const totalResult = await pool.query(
       `SELECT COUNT(*) as total
        FROM Prescription p
-       LEFT JOIN \`Order\` o ON p.prescriptionId = o.prescriptionId
-       LEFT JOIN Customer c ON o.customerId = c.customerId
+       LEFT JOIN Customer c ON p.customerId = c.customerId
        ${whereClause}`,
       params
     ) as unknown[];
@@ -96,7 +95,9 @@ export async function GET(request: Request) {
         c.address AS customerAddress,
         c.phoneNumber AS customerPhoneNumber,
         c.dateOfBirth AS customerDateOfBirth,
-        c.gender AS customerGender
+        c.gender AS customerGender,
+        c.name AS patientName,
+        c.phoneNumber AS patientPhoneNumber
       FROM Prescription p
       LEFT JOIN Customer c ON p.customerId = c.customerId
       ${whereClause}
@@ -117,6 +118,8 @@ export async function GET(request: Request) {
       customerPhoneNumber: string;
       customerDateOfBirth: string;
       customerGender: string;
+      patientName: string;
+      patientPhoneNumber: string;
     }[];
 
     // Map customer info into a nested object for each prescription
@@ -127,6 +130,8 @@ export async function GET(request: Request) {
       approved: row.approved,
       pharmacistId: row.pharmacistId,
       customerId: row.customerId,
+      patientName: row.patientName,
+      patientPhoneNumber: row.patientPhoneNumber,
       customerInfo: {
         name: row.customerName,
         email: row.customerEmail,
@@ -171,7 +176,7 @@ export async function POST(request: Request) {
       await writeFile(path.join(uploadDir, imageFileName), buffer);
     }
 
-    // Insert with customerId
+    // Insert with customerId only - patient info comes from Customer table
     const result = await pool.query(
       `INSERT INTO Prescription (imageFile, uploadDate, approved, pharmacistId, customerId) 
        VALUES (?, NOW(), NULL, NULL, ?)`,

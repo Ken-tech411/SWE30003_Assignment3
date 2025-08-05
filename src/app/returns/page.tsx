@@ -238,8 +238,9 @@ export default function ReturnsPage() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (status: string | null | undefined) => {
+    const safeStatus = status || 'pending';
+    switch (safeStatus) {
       case "pending":
         return "bg-yellow-100 text-yellow-800"
       case "approved":
@@ -253,8 +254,9 @@ export default function ReturnsPage() {
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
+  const getStatusIcon = (status: string | null | undefined) => {
+    const safeStatus = status || 'pending';
+    switch (safeStatus) {
       case "pending":
         return <Clock className="w-4 h-4" />
       case "approved":
@@ -416,7 +418,7 @@ export default function ReturnsPage() {
                           <div className="flex items-center gap-2">
                             {getStatusIcon(item.status)}
                             <Badge className={getStatusColor(item.status)}>
-                              {item.status.toUpperCase()}
+                              {(item.status || 'pending').toUpperCase()}
                             </Badge>
                           </div>
                           <div className="text-sm text-gray-600 mt-1">
@@ -637,7 +639,7 @@ export default function ReturnsPage() {
                           <h3 className="font-semibold ml-2">{item.productName || "Product"}</h3>
                           <span className="ml-auto">
                             <Badge className={getStatusColor(item.status)}>
-                              {item.status.toUpperCase()}
+                              {(item.status || 'pending').toUpperCase()}
                             </Badge>
                           </span>
                         </div>
@@ -777,7 +779,7 @@ export default function ReturnsPage() {
                 <span className="font-semibold">Product Name:</span> {selectedReturn.productName || "N/A"}
               </div>
               <div className="mb-2">
-                <span className="font-semibold">Status:</span> {selectedReturn.status}
+                <span className="font-semibold">Status:</span> {selectedReturn.status || 'pending'}
               </div>
               <div className="mb-2">
                 <span className="font-semibold">Refund Amount:</span> ${Number(selectedReturn.refundAmount).toFixed(2)}

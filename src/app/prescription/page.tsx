@@ -41,8 +41,6 @@ export default function UploadPrescriptionPage() {
   }, [user]);
 
   const [formData, setFormData] = useState({
-    patientName: "",
-    phoneNumber: "",
     imageFile: null as File | null
   })
   const [formError, setFormError] = useState<string | null>(null);
@@ -197,14 +195,6 @@ export default function UploadPrescriptionPage() {
       setFormError("You must be signed in as a customer to upload a prescription.");
       return;
     }
-    if (!formData.patientName.trim()) {
-      setFormError("Patient name is required.");
-      return;
-    }
-    if (!formData.phoneNumber.trim()) {
-      setFormError("Phone number is required.");
-      return;
-    }
     if (!formData.imageFile) {
       setFormError("Prescription image is required.");
       return;
@@ -212,8 +202,6 @@ export default function UploadPrescriptionPage() {
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('customerId', String(user.linkedId));
-      formDataToSend.append('patientName', formData.patientName);
-      formDataToSend.append('phoneNumber', formData.phoneNumber);
       if (formData.imageFile) {
         formDataToSend.append('imageFile', formData.imageFile);
       }
@@ -227,8 +215,6 @@ export default function UploadPrescriptionPage() {
         setFormError(null);
         alert("Prescription submitted for review!");
         setFormData({
-          patientName: "",
-          phoneNumber: "",
           imageFile: null
         })
         // Refresh customer prescriptions
@@ -313,25 +299,7 @@ export default function UploadPrescriptionPage() {
                     <div>Phone: {customerInfo.phoneNumber || "N/A"}</div>
                   </div>
                 )}
-                <div>
-                  <Label htmlFor="patientName">Patient Name</Label>
-                  <Input
-                    id="patientName"
-                    placeholder="Enter full name"
-                    value={formData.patientName}
-                    onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    placeholder="e.g., 0912345678"
-                    type="tel"
-                    value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                  />
-                </div>
+=======
                 <div>
                   <Label htmlFor="image">Prescription Image</Label>
                   <Input

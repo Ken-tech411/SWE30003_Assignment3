@@ -18,17 +18,15 @@ export async function POST(request: Request) {
         `SELECT customerId FROM Customer WHERE name = ? LIMIT 1`,
         [name]
       ) as unknown[];
-      const existingRows = existing as { customerId: number }[];
-      if (existingRows.length > 0) {
-        linkedId = existingRows[0].customerId;
+      if (Array.isArray(existing) && existing.length > 0) {
+        linkedId = (existing[0] as { customerId: number }).customerId;
       } else {
         // Insert new customer if not found
         const [result] = await pool.query(
           `INSERT INTO Customer (name, phoneNumber, email, address, dateOfBirth, gender) VALUES (?, ?, ?, ?, ?, ?)`,
           [name || "", phoneNumber || "", email || "", address || "", dateOfBirth || null, gender || ""]
         ) as unknown[];
-        const insertResult = result as { insertId: number };
-        linkedId = insertResult.insertId;
+        linkedId = (result as { insertId: number }).insertId;
       }
     }
     // You can add similar logic for pharmacist if needed
