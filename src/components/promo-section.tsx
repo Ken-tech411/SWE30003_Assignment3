@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AnimatedSection } from "@/components/animated-section"
-import { ChevronLeft, ChevronRight, Gift, Star, Clock, ShoppingCart } from "lucide-react"
+import { ChevronLeft, ChevronRight, Gift, Star, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 

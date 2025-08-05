@@ -22,7 +22,6 @@ export default function BestSellingProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dataSource, setDataSource] = useState<'api' | 'mock'>('mock');
 
   useEffect(() => {
     console.log('🎯 useEffect triggered!');
@@ -54,16 +53,18 @@ export default function BestSellingProducts() {
 
         let processedProducts: Product[] = [];
         if (Array.isArray(data) && data.length > 0) {
-          processedProducts = data.map((product: any, index: number) => ({
-            productId: String(product.productId || product.ProductID || `api-${index}`),
-            name: String(product.name || product.Name || 'Unknown Product'),
-            description: String(product.description || product.Description || 'No description available'),
-            price: parseFloat(product.price || product.Price || 0),
-            category: String(product.category || product.Category || 'other').toLowerCase(),
-            requiresPrescription: Boolean(product.requiresPrescription || product.RequiresPrescription || false),
-            stock: parseInt(String(product.stock || Math.floor(Math.random() * 20) + 1))
-          }));
-          setDataSource('api');
+          processedProducts = data.map((product: unknown, index: number) => {
+            const productData = product as Record<string, unknown>;
+            return {
+              productId: String(productData.productId || productData.ProductID || `api-${index}`),
+              name: String(productData.name || productData.Name || 'Unknown Product'),
+              description: String(productData.description || productData.Description || 'No description available'),
+              price: parseFloat(String(productData.price || productData.Price || 0)),
+              category: String(productData.category || productData.Category || 'other').toLowerCase(),
+              requiresPrescription: Boolean(productData.requiresPrescription || productData.RequiresPrescription || false),
+              stock: parseInt(String(productData.stock || Math.floor(Math.random() * 20) + 1))
+            };
+          });
           setProducts(processedProducts);
           setError(null);
         } else {
@@ -72,7 +73,6 @@ export default function BestSellingProducts() {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         setError(errorMessage);
-        setDataSource('mock');
         setMockBestSellers();
       } finally {
         setLoading(false);

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { AnimatedSection } from "@/components/animated-section"
 import { Package } from "lucide-react"
@@ -25,7 +24,6 @@ export default function FeaturedProducts() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [loading, setLoading] = useState(true);
-  const [dataSource, setDataSource] = useState<'api' | 'mock'>('mock');
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -45,24 +43,25 @@ export default function FeaturedProducts() {
           console.log('✅ Found direct array with', data.length, 'items');
           
           // Map database fields to our Product interface
-          const formattedProducts = data.map((item: any) => ({
-            productId: item.productId || item.ProductID || item.id || String(Math.random()),
-            name: item.name || item.Name || item.productName || 'Unknown Product',
-            description: item.description || item.Description || 'No description available',
-            price: parseFloat(item.price || item.Price || 0),
-            category: (item.category || item.Category || 'other').toLowerCase(),
-            requiresPrescription: Boolean(item.requiresPrescription || item.RequiresPrescription || false),
-            stock: Math.floor(Math.random() * 20) + 1 // Add random stock for demo
-          }));
+          const formattedProducts = data.map((item: unknown) => {
+            const itemData = item as Record<string, unknown>;
+            return {
+              productId: String(itemData.productId || itemData.ProductID || itemData.id || Math.random()),
+              name: String(itemData.name || itemData.Name || itemData.productName || 'Unknown Product'),
+              description: String(itemData.description || itemData.Description || 'No description available'),
+              price: parseFloat(String(itemData.price || itemData.Price || 0)),
+              category: String(itemData.category || itemData.Category || 'other').toLowerCase(),
+              requiresPrescription: Boolean(itemData.requiresPrescription || itemData.RequiresPrescription || false),
+              stock: Math.floor(Math.random() * 20) + 1 // Add random stock for demo
+            };
+          });
           
           console.log('🎯 Formatted products:', formattedProducts);
           setProducts(formattedProducts);
-          setDataSource('api');
           
         } else if (data.products && Array.isArray(data.products)) {
           console.log('✅ Found products array with', data.products.length, 'items');
           setProducts(data.products);
-          setDataSource('api');
           
         } else {
           console.error('❌ Invalid data format:', data);
@@ -157,7 +156,6 @@ export default function FeaturedProducts() {
       
       console.log('🔄 Using mock data:', mockProducts);
       setProducts(mockProducts);
-      setDataSource('mock');
     };
 
     fetchProducts();

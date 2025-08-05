@@ -2,10 +2,9 @@
 
 import Link from "next/link"
 import Image from "next/image"
-import { ShoppingCart, Search, User, ChevronDown, X, Clock } from "lucide-react"
+import { ShoppingCart, Search, ChevronDown, X, Clock } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
 import NavbarAuthButton from "./NavbarAuthButton"
 import { useAuth } from '@/context/AuthContext'
 
@@ -27,7 +26,6 @@ export function Navbar() {
   const [dropdownTimer, setDropdownTimer] = useState<NodeJS.Timeout | null>(null)
   const [loading, setLoading] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
-  const router = useRouter()
   const { user } = useAuth(); // Add this line to get the user
 
   // Load search history from localStorage on component mount
@@ -124,17 +122,18 @@ export function Navbar() {
           setProducts([])
           return
         }
-        const validatedProducts = apiProducts.map((product: any) => ({
-          productId: product.productId || product.id,
-          name: product.name || 'Unknown Product',
-          description: product.description || '',
-          price: typeof product.price === 'string' ? parseFloat(product.price) : (product.price || 0),
-          category: product.category || 'uncategorized',
-          requiresPrescription: product.requiresPrescription || false
-        })).filter(product => product.name !== 'Unknown Product')
+        const validatedProducts = apiProducts.map((product: unknown) => {
+          const productData = product as Record<string, unknown>;
+          return {
+            productId: Number(productData.productId || productData.id),
+            name: String(productData.name || 'Unknown Product'),
+            description: String(productData.description || ''),
+            price: typeof productData.price === 'string' ? parseFloat(productData.price) : (Number(productData.price) || 0),
+            category: String(productData.category || 'uncategorized'),
+            requiresPrescription: Boolean(productData.requiresPrescription || false)
+          };
+        }).filter(product => product.name !== 'Unknown Product')
         setProducts(validatedProducts)
-      } catch (error) {
-        setProducts([])
       } finally {
         setLoading(false)
       }
@@ -169,7 +168,7 @@ export function Navbar() {
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleSearch(e as any)
+      handleSearch(e as React.FormEvent)
     } else if (e.key === 'Escape') {
       setShowSearchHistory(false)
     }

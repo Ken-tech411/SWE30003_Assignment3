@@ -25,7 +25,7 @@ export async function getConnection() {
   }
 }
 
-export async function query(sql: string, params?: any[]) {
+export async function query(sql: string, params?: unknown[]) {
   const connection = await getConnection();
   try {
     const [results] = await connection.execute(sql, params);
