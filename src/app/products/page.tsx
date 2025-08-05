@@ -1,8 +1,8 @@
-// Products Management Page
+// Products Management Page with Pagination
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Plus, Filter, Eye, Edit, Package, X, ShoppingCart } from 'lucide-react';
+import { Search, Plus, Filter, Eye, Edit, Package, X, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface Product {
@@ -29,6 +29,10 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<{ [key: string]: number }>({});
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(12); // Show 12 products per page
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -99,6 +103,46 @@ export default function ProductsPage() {
 
     return matchesSearch && matchesCategory && matchesStatus;
   });
+
+  // Pagination calculations
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  const handleFilterChange = (filterType: string, value: string) => {
+    setCurrentPage(1);
+    if (filterType === 'search') setSearchTerm(value);
+    if (filterType === 'category') setCategoryFilter(value);
+    if (filterType === 'status') setStatusFilter(value);
+  };
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const startPage = Math.max(1, currentPage - 2);
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
 
   const categories = ['All Categories', ...Array.from(new Set(products.map(p => p.category)))];
 
@@ -219,6 +263,65 @@ export default function ProductsPage() {
     }
   };
 
+  // Pagination Component
+  const PaginationComponent = () => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <div className="flex flex-col items-center mt-12 space-y-4">
+        {/* Results Counter */}
+        <div className="text-base text-gray-700 font-medium">
+          Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} products
+        </div>
+        
+        {/* Pagination Controls */}
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`flex items-center px-5 py-3 text-base font-medium rounded-lg transition-all duration-200 ${
+              currentPage === 1
+                ? 'text-gray-400 cursor-not-allowed bg-gray-100'
+                : 'text-gray-700 hover:bg-gray-100 hover:text-orange-600 bg-white border border-gray-300 hover:border-orange-300'
+            }`}
+          >
+            <ChevronLeft className="w-5 h-5 mr-2" />
+            Previous
+          </button>
+
+          <div className="flex space-x-2">
+            {generatePageNumbers().map(pageNum => (
+              <button
+                key={pageNum}
+                onClick={() => handlePageChange(pageNum)}
+                className={`px-4 py-3 text-base font-medium rounded-lg transition-all duration-200 min-w-[48px] ${
+                  currentPage === pageNum
+                    ? 'bg-orange-500 text-white shadow-lg transform scale-105 border-2 border-orange-500'
+                    : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600 bg-white border border-gray-300 hover:border-orange-300 hover:shadow-md'
+                }`}
+              >
+                {pageNum}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`flex items-center px-5 py-3 text-base font-medium rounded-lg transition-all duration-200 ${
+              currentPage === totalPages
+                ? 'text-gray-400 cursor-not-allowed bg-gray-100'
+                : 'text-gray-700 hover:bg-gray-100 hover:text-orange-600 bg-white border border-gray-300 hover:border-orange-300'
+            }`}
+          >
+            Next
+            <ChevronRight className="w-5 h-5 ml-2" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   // Show loading state
   if (loading) {
     return (
@@ -273,7 +376,7 @@ export default function ProductsPage() {
                   type="text"
                   placeholder="Search products..."
                   value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                  onChange={e => handleFilterChange('search', e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
                 />
               </div>
@@ -283,7 +386,7 @@ export default function ProductsPage() {
               <Filter className="w-4 h-4 text-gray-600" />
               <select
                 value={categoryFilter}
-                onChange={e => setCategoryFilter(e.target.value)}
+                onChange={e => handleFilterChange('category', e.target.value)}
                 className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-40 text-gray-900"
               >
                 {categories.map(category => (
@@ -296,7 +399,7 @@ export default function ProductsPage() {
 
         {/* Products Grid - Customer View */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map(product => {
+          {currentProducts.map(product => {
             const status = getStockStatus(product.stock);
             const isOutOfStock = status === 'OUT OF STOCK';
             return (
@@ -364,6 +467,9 @@ export default function ProductsPage() {
           })}
         </div>
 
+        {/* Pagination */}
+        <PaginationComponent />
+
         {/* Empty State */}
         {filteredProducts.length === 0 && (
           <div className="text-center py-12">
@@ -413,7 +519,7 @@ export default function ProductsPage() {
                 type="text"
                 placeholder="Search products..."
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={e => handleFilterChange('search', e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
               />
             </div>
@@ -423,7 +529,7 @@ export default function ProductsPage() {
             <Filter className="w-4 h-4 text-gray-600" />
             <select
               value={categoryFilter}
-              onChange={e => setCategoryFilter(e.target.value)}
+              onChange={e => handleFilterChange('category', e.target.value)}
               className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-40 text-gray-900"
             >
               {categories.map(category => (
@@ -433,7 +539,7 @@ export default function ProductsPage() {
 
             <select
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              onChange={e => handleFilterChange('status', e.target.value)}
               className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-32 text-gray-900"
             >
               <option value="All Status">All Status</option>
@@ -447,7 +553,7 @@ export default function ProductsPage() {
 
       {/* Products Grid - Staff View */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map(product => {
+        {currentProducts.map(product => {
           const status = getStockStatus(product.stock);
           return (
             <div key={product.productId} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
@@ -514,6 +620,9 @@ export default function ProductsPage() {
           );
         })}
       </div>
+
+      {/* Pagination */}
+      <PaginationComponent />
 
       {/* Empty State */}
       {filteredProducts.length === 0 && (
@@ -769,6 +878,7 @@ function ProductFormModal({ product, onClose, onSubmit, title }: {
     </div>
   );
 }
+
 // Customer Product View Modal Component
 function CustomerProductViewModal({ product, onClose, onAddToCart }: {
   product: Product;
