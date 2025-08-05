@@ -17,16 +17,17 @@ export async function GET(request: Request) {
       request.headers.get('authorization') ||
       cookieStore.get('sessionToken')?.value;
 
-    let user: any = null;
+    let user: { role: string; linkedId: number } | null = null;
     if (sessionToken) {
-      const [sessions] = await pool.query(
+      const sessions = await pool.query(
         `SELECT u.userId, u.username, u.role, u.linkedId
          FROM UserSession s
          JOIN UserAccount u ON s.userId = u.userId
          WHERE s.sessionToken = ? AND s.isActive = 1`,
         [sessionToken]
-      ) as any[];
-      user = sessions[0] || null;
+      ) as unknown[];
+      const sessionArray = sessions as { role: string; linkedId: number }[];
+      user = sessionArray[0] || null;
     }
 
     const statuses = searchParams.getAll('status'); // e.g. ["approved", "pending"]
@@ -35,8 +36,8 @@ export async function GET(request: Request) {
     const customerId = searchParams.get('customerId');
 
     // Build WHERE clause
-    let where: string[] = [];
-    let params: any[] = [];
+    const where: string[] = [];
+    const params: unknown[] = [];
 
     if (statuses.length) {
       const statusConds = statuses.map(status => {
@@ -70,18 +71,19 @@ export async function GET(request: Request) {
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     // Get total count for filtered set
-    const [totalRows] = await pool.query(
+    const totalResult = await pool.query(
       `SELECT COUNT(*) as total
        FROM Prescription p
        LEFT JOIN \`Order\` o ON p.prescriptionId = o.prescriptionId
        LEFT JOIN Customer c ON o.customerId = c.customerId
        ${whereClause}`,
       params
-    ) as any[];
+    ) as unknown[];
+    const totalRows = totalResult as { total: number }[];
     const total = totalRows[0]?.total || 0;
 
     // Get paginated filtered data
-    const [rows] = await pool.query(
+    const rowsResult = await pool.query(
       `SELECT 
         p.prescriptionId,
         p.imageFile,
@@ -101,10 +103,24 @@ export async function GET(request: Request) {
       ORDER BY p.uploadDate DESC
       LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
-    ) as any[];
+    ) as unknown[];
+    const rows = rowsResult as {
+      prescriptionId: number;
+      imageFile: string;
+      uploadDate: string;
+      approved: boolean;
+      pharmacistId: number;
+      customerId: number;
+      customerName: string;
+      customerEmail: string;
+      customerAddress: string;
+      customerPhoneNumber: string;
+      customerDateOfBirth: string;
+      customerGender: string;
+    }[];
 
     // Map customer info into a nested object for each prescription
-    const data = rows.map((row: any) => ({
+    const data = rows.map((row) => ({
       prescriptionId: row.prescriptionId,
       imageFile: row.imageFile,
       uploadDate: row.uploadDate,
@@ -122,13 +138,14 @@ export async function GET(request: Request) {
     }));
 
     // Get status counts (for all data, not just filtered)
-    const [statusCountsRows] = await pool.query(
+    const statusCountsResult = await pool.query(
       `SELECT 
         SUM(CASE WHEN p.approved IS NULL THEN 1 ELSE 0 END) as pending,
         SUM(CASE WHEN p.approved = 1 THEN 1 ELSE 0 END) as approved,
         SUM(CASE WHEN p.approved = 0 THEN 1 ELSE 0 END) as rejected
       FROM Prescription p`
-    ) as any[];
+    ) as unknown[];
+    const statusCountsRows = statusCountsResult as { pending: number; approved: number; rejected: number }[];
     const statusCounts = statusCountsRows[0] || { pending: 0, approved: 0, rejected: 0 };
 
     return NextResponse.json({ data, total, statusCounts });
@@ -155,14 +172,15 @@ export async function POST(request: Request) {
     }
 
     // Insert with customerId
-    const [result]: any = await pool.query(
+    const result = await pool.query(
       `INSERT INTO Prescription (imageFile, uploadDate, approved, pharmacistId, customerId) 
        VALUES (?, NOW(), NULL, NULL, ?)`,
       [imageFileName, customerId]
-    );
+    ) as unknown;
+    const insertResult = result as { insertId: number };
 
     return NextResponse.json(
-      { success: true, prescriptionId: result.insertId },
+      { success: true, prescriptionId: insertResult.insertId },
       { status: 201 }
     );
   } catch (error) {

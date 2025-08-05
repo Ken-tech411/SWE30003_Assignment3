@@ -4,7 +4,6 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, Filter, Eye, Edit, Package, X, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import Link from 'next/link';
 import { Footer } from '@/components/footer';
 
 interface Product {
@@ -30,7 +29,6 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cart, setCart] = useState<{ [key: string]: number }>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
 
@@ -197,13 +195,6 @@ export default function ProductsPage() {
   const endIndex = startIndex + itemsPerPage;
   const currentProducts = filteredProducts.slice(startIndex, endIndex);
 
-  // Reset to first page when filters change
-  const handleFilterChange = (filterType: string, value: string) => {
-    setCurrentPage(1);
-    if (filterType === 'search') setSearchTerm(value);
-    if (filterType === 'category') setCategoryFilter(value);
-    if (filterType === 'status') setStatusFilter(value);
-  };
 
   // Pagination handlers
   const handlePageChange = (page: number) => {
@@ -241,29 +232,25 @@ export default function ProductsPage() {
     }
 
     try {
-      const response = await fetch('/api/cart', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: user.customerId,
-          productId,
-          quantity: 1
-        })
-      });
+        const response = await fetch('/api/cart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: user.customerId,
+            productId,
+            quantity: 1
+          })
+        });
 
-      if (response.ok) {
-        setCart(prev => ({
-          ...prev,
-          [productId]: (prev[productId] || 0) + 1
-        }));
-        alert("Added to cart!");
-      } else {
-        const data = await response.json();
-        alert(data.error || "Failed to add to cart.");
+        if (response.ok) {
+          alert("Added to cart!");
+        } else {
+          const data = await response.json();
+          alert(data.error || "Failed to add to cart.");
+        }
+      } catch {
+        alert("Failed to add to cart.");
       }
-    } catch (error) {
-      alert("Failed to add to cart.");
-    }
   };
 
   // Staff modal handlers

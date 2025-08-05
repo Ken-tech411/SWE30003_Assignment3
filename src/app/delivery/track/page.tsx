@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Package, MapPin, Clock, User } from "lucide-react"
+import { Package, Clock, User } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export default function TrackDeliveryPage() {
@@ -11,7 +11,22 @@ export default function TrackDeliveryPage() {
   const searchParams = useSearchParams()
   const orderId = searchParams.get("orderId") || ""
 
-  const [order, setOrder] = useState<any>(null)
+  const [order, setOrder] = useState<{
+    orderId: number;
+    customerName: string;
+    customerEmail: string;
+    orderDate: string;
+    status: string;
+    totalAmount: number;
+    prescriptionId?: number;
+    items?: {
+      orderItemId: number;
+      productName: string;
+      productDescription: string;
+      quantity: number;
+      price: number;
+    }[];
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,7 +49,7 @@ export default function TrackDeliveryPage() {
           const data = await res.json()
           setOrder(data)
         }
-      } catch (err) {
+      } catch {
         setError("No tracking information found.")
         setOrder(null)
       }
@@ -140,7 +155,7 @@ export default function TrackDeliveryPage() {
             <CardContent>
               {order.items && order.items.length > 0 ? (
                 <ul className="space-y-2">
-                  {order.items.map((item: any) => (
+                  {order.items.map((item) => (
                     <li key={item.orderItemId} className="border-b pb-2">
                       <div className="font-medium">{item.productName}</div>
                       <div className="text-sm text-gray-600">{item.productDescription}</div>

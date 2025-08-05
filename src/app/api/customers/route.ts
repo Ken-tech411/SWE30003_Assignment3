@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [data.name, data.phoneNumber, data.email, data.address, data.dateOfBirth, data.gender]
     );
-    return NextResponse.json({ customerId: (result as any).insertId });
+    const insertResult = result as { insertId: number };
+    return NextResponse.json({ customerId: insertResult.insertId });
   } catch (error) {
     console.error('Error creating customer:', error);
     return NextResponse.json({ error: 'Failed to create customer' }, { status: 500 });

@@ -92,8 +92,9 @@ export async function POST(request: NextRequest) {
     const [productRow] = await pool.query(
       `SELECT requiresPrescription FROM Product WHERE productId = ?`,
       [productId]
-    ) as any[]
-    const product = productRow?.[0]
+    ) as unknown[]
+    const productRows = productRow as { requiresPrescription: boolean }[]
+    const product = productRows?.[0]
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
@@ -104,8 +105,9 @@ export async function POST(request: NextRequest) {
       const [prescriptions] = await pool.query(
         `SELECT 1 FROM Prescription WHERE customerId = ? AND approved = 1 LIMIT 1`,
         [customerId]
-      ) as any[]
-      if (!prescriptions || prescriptions.length === 0) {
+      ) as unknown[]
+      const prescriptionRows = prescriptions as unknown[]
+      if (!prescriptionRows || prescriptionRows.length === 0) {
         return NextResponse.json(
           { error: 'You need an approved prescription to buy this product.' },
           { status: 403 }
@@ -117,9 +119,10 @@ export async function POST(request: NextRequest) {
     const [existing] = await pool.query(
       `SELECT * FROM Cart WHERE customerId = ? AND productId = ?`,
       [customerId, productId]
-    ) as any[]
+    ) as unknown[]
+    const existingRows = existing as unknown[]
 
-    if (existing.length > 0) {
+    if (existingRows.length > 0) {
       await pool.query(
         `UPDATE Cart SET quantity = quantity + ? WHERE customerId = ? AND productId = ?`,
         [quantity, customerId, productId]

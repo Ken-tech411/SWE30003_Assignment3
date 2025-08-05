@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const response = NextResponse.json({ success: true });
     response.cookies.set('sessionToken', '', { httpOnly: true, path: '/', maxAge: 0 });
     return response;
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Logout failed' }, { status: 500 });
   }
 }

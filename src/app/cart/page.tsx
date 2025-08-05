@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input"
 import { Minus, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/context/AuthContext"
-import NavbarAuthButton from "@/components/NavbarAuthButton"
 import { Footer } from "@/components/footer"
 
 interface CartItem {
@@ -31,13 +30,12 @@ export default function CartPage() {
   const { user } = useAuth()
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [approvedPrescriptions, setApprovedPrescriptions] = useState<any[]>([])
+  const [approvedPrescriptions, setApprovedPrescriptions] = useState<unknown[]>([])
 
   useEffect(() => {
     if (user && user.customerId) {
       fetchCartItems(user.customerId)
     }
-    // eslint-disable-next-line
   }, [user])
 
   useEffect(() => {

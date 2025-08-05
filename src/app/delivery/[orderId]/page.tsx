@@ -11,7 +11,23 @@ import { Footer } from "@/components/footer"
 export default function DeliveryDetailPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const { user } = useAuth()
-  const [order, setOrder] = useState<any>(null)
+  const [order, setOrder] = useState<{
+    orderId: number;
+    customerName: string;
+    customerEmail: string;
+    customerAddress: string;
+    orderDate: string;
+    status: string;
+    totalAmount: number;
+    prescriptionId?: number;
+    items?: {
+      orderItemId: number;
+      productName: string;
+      productDescription: string;
+      quantity: number;
+      price: number;
+    }[];
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [prescriptionId, setPrescriptionId] = useState<number | null>(null)
 
@@ -31,7 +47,7 @@ export default function DeliveryDetailPage() {
           const data = await res.json()
           setOrder(data.orders?.[0] || null)
         }
-      } catch (err) {
+      } catch {
         setOrder(null)
       }
       setLoading(false)
@@ -55,9 +71,11 @@ export default function DeliveryDetailPage() {
         if (order?.prescriptionId) {
           setPrescriptionId(order.prescriptionId)
         } else if (Array.isArray(data.data) && data.data.length > 0) {
-          const sorted = data.data.sort((a: any, b: any) =>
-            new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()
-          )
+          const sorted = data.data.sort((a: unknown, b: unknown) => {
+            const aData = a as { uploadDate: string };
+            const bData = b as { uploadDate: string };
+            return new Date(bData.uploadDate).getTime() - new Date(aData.uploadDate).getTime();
+          })
           setPrescriptionId(sorted[0].prescriptionId)
         } else {
           setPrescriptionId(null)
@@ -222,7 +240,7 @@ export default function DeliveryDetailPage() {
             <CardContent>
               {order.items && order.items.length > 0 ? (
                 <ul className="space-y-2">
-                  {order.items.map((item: any) => (
+                  {order.items.map((item) => (
                     <li key={item.orderItemId} className="border-b pb-2">
                       <div className="font-medium">{item.productName}</div>
                       <div className="text-sm text-gray-600">{item.productDescription}</div>

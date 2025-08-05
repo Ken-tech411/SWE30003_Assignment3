@@ -11,12 +11,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch the order only if it belongs to this customer
-    const [order] = await query(`
+    const orderResult = await query(`
       SELECT o.*, c.name as customerName, c.email as customerEmail, c.address as customerAddress
       FROM \`Order\` o
       JOIN Customer c ON o.customerId = c.customerId
       WHERE o.orderId = ? AND o.customerId = ?
-    `, [orderId, customerId]) as any[]
+    `, [orderId, customerId]) as unknown[]
+    const orderArray = orderResult as { items?: unknown[] }[]
+    const order = orderArray[0]
 
     if (!order) {
       return NextResponse.json({ error: 'You can only track orders that belong to your account.' }, { status: 403 })
@@ -29,9 +31,10 @@ export async function GET(request: NextRequest) {
       FROM OrderItem oi
       JOIN Product p ON oi.productId = p.productId
       WHERE oi.orderId = ?
-    `, [orderId]) as any[]
+    `, [orderId]) as unknown[]
+    const itemsArray = items as { productId: string; name: string; unitPrice: number; quantity: number }[]
 
-    order.items = items.map(item => ({
+    order.items = itemsArray.map(item => ({
       productId: item.productId,
       name: item.name,
       unitPrice: item.unitPrice,

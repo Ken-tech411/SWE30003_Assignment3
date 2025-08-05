@@ -57,21 +57,22 @@ export async function POST(request: NextRequest) {
       `INSERT INTO Payment (orderId, method, transactionDate, status)
        VALUES (?, ?, NOW(), ?)`,
       [orderId, method, status]
-    );
+    ) as { insertId: number };
 
     // Fetch amount and method for response
-    const [rows]: any = await query(
+    const rows = await query(
       `SELECT p.*, o.totalAmount as amount
        FROM Payment p
        LEFT JOIN \`Order\` o ON p.orderId = o.orderId
        WHERE p.paymentId = ?`,
-      [(result as any).insertId]
-    );
-    const payment = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+      [result.insertId]
+    ) as unknown[];
+    const paymentRows = rows as { amount: number; method: string }[];
+    const payment = paymentRows.length > 0 ? paymentRows[0] : null;
 
     return NextResponse.json({
       success: true,
-      paymentId: (result as any).insertId,
+      paymentId: result.insertId,
       amount: payment?.amount,
       method: payment?.method
     });

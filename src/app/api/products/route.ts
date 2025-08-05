@@ -26,11 +26,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result: any = await query(
+    const result = await query(
       `INSERT INTO Product (name, description, price, category, requiresPrescription) 
        VALUES (?, ?, ?, ?, ?)`,
       [name, description || '', parseFloat(price), category || '', requiresPrescription || false]
-    );
+    ) as { insertId: number };
 
     const productId = result.insertId;
 
@@ -62,12 +62,12 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const result: any = await query(
+    const result = await query(
       `UPDATE Product 
        SET name = ?, description = ?, price = ?, category = ?, requiresPrescription = ?
        WHERE productId = ?`,
       [name, description || '', parseFloat(price), category || '', requiresPrescription || false, productId]
-    );
+    ) as { affectedRows: number };
 
     if (result.affectedRows === 0) {
       return NextResponse.json(
@@ -103,10 +103,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const result: any = await query(
+    const result = await query(
       'DELETE FROM Product WHERE productId = ?',
       [productId]
-    );
+    ) as { affectedRows: number };
 
     if (result.affectedRows === 0) {
       return NextResponse.json(

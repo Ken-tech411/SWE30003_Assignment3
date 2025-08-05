@@ -12,8 +12,8 @@ export async function GET(request: Request) {
     const statuses = searchParams.getAll('status'); // ?status=Responded&status=Flagged
     const categories = searchParams.getAll('category'); // ?category=Service
 
-    let where: string[] = [];
-    let params: any[] = [];
+    const where: string[] = [];
+    const params: unknown[] = [];
 
     if (statuses.length) {
       where.push(`status IN (${statuses.map(() => '?').join(',')})`);
@@ -29,26 +29,28 @@ export async function GET(request: Request) {
     const [totalRows] = await pool.query(
       `SELECT COUNT(*) as total FROM Feedback ${whereClause}`,
       params
-    ) as any[];
-    const total = totalRows[0]?.total || 0;
+    ) as unknown[];
+    const totalRowsArray = totalRows as { total: number }[];
+    const total = totalRowsArray[0]?.total || 0;
 
     // Get paginated filtered data
     const [rows] = await pool.query(
       `SELECT * FROM Feedback ${whereClause} ORDER BY submittedDate DESC LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
-    ) as any[];
+    ) as unknown[];
 
     // Get status counts (for all data, not just filtered)
     const [statusCountsRows] = await pool.query(
       `SELECT status, COUNT(*) as count FROM Feedback GROUP BY status`
-    ) as any[];
+    ) as unknown[];
+    const statusCountsArray = statusCountsRows as { status: string; count: number }[];
     const statusCounts: Record<string, number> = {};
-    statusCountsRows.forEach((row: any) => {
+    statusCountsArray.forEach((row) => {
       statusCounts[row.status] = row.count;
     });
 
     return NextResponse.json({ data: rows, total, statusCounts });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch feedbacks' }, { status: 500 });
   }
 }
@@ -77,8 +79,9 @@ export async function POST(request: Request) {
     const sql = `INSERT INTO Feedback (${columns.join(", ")}) VALUES (${placeholders})`;
 
     const [result] = await pool.query(sql, values);
-    return NextResponse.json({ success: true, id: (result as any).insertId }, { status: 201 });
-  } catch (error) {
+    const insertResult = result as { insertId: number };
+    return NextResponse.json({ success: true, id: insertResult.insertId }, { status: 201 });
+  } catch {
     return NextResponse.json({ error: 'Failed to create feedback' }, { status: 500 });
   }
 }

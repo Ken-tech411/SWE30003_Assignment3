@@ -74,7 +74,7 @@ export default function DeliveryPage() {
     if (user?.role === "pharmacist") {
       fetchAllDeliveries();
     }
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffPage, staffDeliveriesPerPage, selectedStatuses, debouncedOrderId, debouncedCustomerId, user?.role]);
 
   // Real-time polling for staff deliveries
@@ -94,18 +94,30 @@ export default function DeliveryPage() {
       const data = await response.json();
       setCustomerDeliveries(
         (data.orders || [])
-          .filter((order: any) => order.customerId === user?.customerId)
-          .map((order: any) => ({
-            id: order.orderId,
-            orderId: order.orderId,
-            customerName: order.customerName,
-            customerAddress: order.customerAddress || "",
-            status: order.status,
-            orderDate: order.orderDate,
-            totalAmount: order.totalAmount,
-            prescriptionId: order.prescriptionId,
-            customerId: order.customerId,
-          }))
+          .filter((order: unknown) => (order as { customerId: number }).customerId === user?.customerId)
+          .map((order: unknown) => {
+            const orderData = order as {
+              orderId: number;
+              customerName: string;
+              customerAddress: string;
+              status: string;
+              orderDate: string;
+              totalAmount: number | string;
+              prescriptionId?: number;
+              customerId: number;
+            };
+            return {
+              id: orderData.orderId,
+              orderId: orderData.orderId,
+              customerName: orderData.customerName,
+              customerAddress: orderData.customerAddress || "",
+              status: orderData.status,
+              orderDate: orderData.orderDate,
+              totalAmount: orderData.totalAmount,
+              prescriptionId: orderData.prescriptionId,
+              customerId: orderData.customerId,
+            };
+          })
       );
     } catch (error) {
       console.error('Error fetching customer deliveries:', error);
@@ -127,17 +139,29 @@ export default function DeliveryPage() {
       const response = await fetch(`/api/deliveries?${query}`);
       const data = await response.json();
       setStaffDeliveries(
-        (data.orders || []).map((order: any) => ({
-          id: order.orderId,
-          orderId: order.orderId,
-          customerName: order.customerName,
-          customerAddress: order.customerAddress || "",
-          status: order.status,
-          orderDate: order.orderDate,
-          totalAmount: order.totalAmount,
-          prescriptionId: order.prescriptionId,
-          customerId: order.customerId,
-        }))
+        (data.orders || []).map((order: unknown) => {
+          const orderData = order as {
+            orderId: number;
+            customerName: string;
+            customerAddress: string;
+            status: string;
+            orderDate: string;
+            totalAmount: number | string;
+            prescriptionId?: number;
+            customerId: number;
+          };
+          return {
+            id: orderData.orderId,
+            orderId: orderData.orderId,
+            customerName: orderData.customerName,
+            customerAddress: orderData.customerAddress || "",
+            status: orderData.status,
+            orderDate: orderData.orderDate,
+            totalAmount: orderData.totalAmount,
+            prescriptionId: orderData.prescriptionId,
+            customerId: orderData.customerId,
+          };
+        })
       );
       setTotalStaff(data.total || 0);
       setStatusCounts(data.statusCounts || { pending: 0, approved: 0, delivered: 0 });
@@ -206,7 +230,7 @@ export default function DeliveryPage() {
         return;
       }
       router.push(`/delivery/${encodeURIComponent(trackingId)}`);
-    } catch (err) {
+    } catch {
       setTrackError("Order not found. Please check your Order ID.");
     }
   };

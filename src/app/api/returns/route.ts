@@ -12,11 +12,11 @@ export async function GET(request: NextRequest) {
     const orderId = searchParams.get('orderId');
     const customerId = searchParams.get('customerId');
 
-    let where: string[] = [];
-    let params: any[] = [];
+    const where: string[] = [];
+    const params: unknown[] = [];
 
     if (statuses.length) {
-      const statusConds = statuses.map(status => "r.status = ?");
+      const statusConds = statuses.map(() => "r.status = ?");
       where.push(`(${statusConds.join(" OR ")})`);
       params.push(...statuses);
     }
@@ -31,17 +31,18 @@ export async function GET(request: NextRequest) {
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     // Get total count for filtered set (pagination)
-    const [totalRows] = await pool.query(
+    const totalResult = await pool.query(
       `SELECT COUNT(*) as total
        FROM \`Return\` r
        JOIN \`Order\` o ON r.orderId = o.orderId
        ${whereClause}`,
       params
-    ) as any[];
+    ) as unknown[];
+    const totalRows = totalResult as { total: number }[];
     const total = totalRows[0]?.total || 0;
 
     // Get paginated filtered data
-    const [returns] = await pool.query(
+    const returnsResult = await pool.query(
       `SELECT 
         r.*, 
         o.orderId, 
@@ -61,10 +62,18 @@ export async function GET(request: NextRequest) {
       ORDER BY r.submittedDate DESC
       LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
-    ) as any[];
+    ) as unknown[];
+    const returns = returnsResult as {
+      customerName: string;
+      customerEmail: string;
+      customerAddress: string;
+      customerPhoneNumber: string;
+      customerDateOfBirth: string;
+      customerGender: string;
+    }[];
 
     // Map customer info into a nested object for each return
-    const returnsWithCustomerInfo = returns.map((row: any) => ({
+    const returnsWithCustomerInfo = returns.map((row) => ({
       ...row,
       customerInfo: {
         name: row.customerName,
@@ -77,14 +86,15 @@ export async function GET(request: NextRequest) {
     }));
 
     // --- Get stats for the whole Return table (not paginated/filtered) ---
-    const [statsRows] = await pool.query(
+    const statsResult = await pool.query(
       `SELECT 
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
         SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
         SUM(refundAmount) as totalRefunds
       FROM \`Return\``
-    ) as any[];
+    ) as unknown[];
+    const statsRows = statsResult as { pending: number; approved: number; rejected: number; totalRefunds: number }[];
     const stats = statsRows[0] || { pending: 0, approved: 0, rejected: 0, totalRefunds: 0 };
 
     return NextResponse.json({ returns: returnsWithCustomerInfo, total, stats });
@@ -99,20 +109,22 @@ export async function POST(request: NextRequest) {
     const { orderId, productId, reason, description } = await request.json();
 
     // Fetch the price from the OrderItem table for this order and product
-    const [orderItemResult] = await pool.query(
+    const orderItemResult = await pool.query(
       'SELECT unitPrice FROM OrderItem WHERE orderId = ? AND productId = ?',
       [orderId, productId]
-    ) as any[];
-    const orderItem = Array.isArray(orderItemResult) ? orderItemResult[0] : undefined;
+    ) as unknown[];
+    const orderItemRows = orderItemResult as { unitPrice: number }[];
+    const orderItem = orderItemRows[0];
     const refundAmount = orderItem && orderItem.unitPrice ? Number(orderItem.unitPrice) : 0;
 
-    const [result]: any = await pool.query(
+    const result = await pool.query(
       `INSERT INTO \`Return\` (orderId, productId, reason, description, status, refundAmount, submittedDate)
        VALUES (?, ?, ?, ?, 'pending', ?, NOW())`,
       [orderId, productId, reason, description, refundAmount]
-    );
+    ) as unknown;
+    const insertResult = result as { insertId: number };
 
-    return NextResponse.json({ success: true, returnId: result.insertId });
+    return NextResponse.json({ success: true, returnId: insertResult.insertId });
   } catch (error) {
     console.error('Error creating return request:', error);
     return NextResponse.json({ error: 'Failed to create return request' }, { status: 500 });
@@ -129,7 +141,7 @@ export async function PUT(request: NextRequest) {
 
     // Optionally, update processedDate if status is 'completed'
     let sql = 'UPDATE `Return` SET status = ?';
-    const params: any[] = [status];
+    const params: unknown[] = [status];
 
     if (status === 'completed') {
       sql += ', processedDate = NOW()';

@@ -21,7 +21,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useAuth();
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     const url = isSignup ? "/api/auth/signup" : "/api/auth/login";
@@ -139,7 +139,7 @@ export default function LoginPage() {
               </span>
             ) : (
               <span>
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <button
                   className="text-orange-600 hover:text-orange-800 font-semibold transition-colors"
                   onClick={() => setIsSignup(true)}

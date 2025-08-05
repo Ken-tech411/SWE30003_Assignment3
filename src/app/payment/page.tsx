@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle, CreditCard, Clock, AlertCircle } from "lucide-react"
+import { CheckCircle, Clock, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from 'next/navigation'
 import { Footer } from "@/components/footer"
@@ -21,7 +21,13 @@ function getDisplayMethod(method: string) {
 
 export default function PaymentPage() {
   const [paymentStatus, setPaymentStatus] = useState<"processing" | "success" | "failed">("processing")
-  const [paymentData, setPaymentData] = useState<any>(null)
+  const [paymentData, setPaymentData] = useState<{
+    orderId: number;
+    customerName: string;
+    amount: number;
+    method: string;
+    paymentId: number;
+  } | null>(null)
   const searchParams = useSearchParams()
 
   useEffect(() => {
@@ -44,7 +50,7 @@ export default function PaymentPage() {
       } else {
         setPaymentStatus("failed")
       }
-    } catch (error) {
+    } catch {
       setPaymentStatus("failed")
     }
   }

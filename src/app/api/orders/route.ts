@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
         FROM \`Order\` o
         JOIN Customer c ON o.customerId = c.customerId
         WHERE o.orderId = ?
-      `, [orderId]) as any[];
+      `, [orderId]) as unknown[];
 
       // Fetch order items for this order
       const items = await query(`
@@ -24,11 +24,12 @@ export async function GET(request: NextRequest) {
         FROM OrderItem oi
         JOIN Product p ON oi.productId = p.productId
         WHERE oi.orderId = ?
-      `, [orderId]) as any[];
+      `, [orderId]) as unknown[];
 
       // Attach items to the order
-      if (orders.length > 0) {
-        orders[0].items = items;
+      const ordersArray = orders as { items?: unknown[] }[];
+      if (ordersArray.length > 0) {
+        ordersArray[0].items = items;
       }
     } else {
       // Fetch all orders with customer info (no items)
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
         FROM \`Order\` o
         JOIN Customer c ON o.customerId = c.customerId
         ORDER BY o.orderDate DESC
-      `) as any[];
+      `) as unknown[];
     }
 
     return NextResponse.json({ orders })
@@ -51,14 +52,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    let {
-      customerId,
+    const {
+      customerId: initialCustomerId,
       customer, // optional: object with customer fields
       totalAmount,
       status,
       prescriptionId, // optional
       items // array of { productId, quantity, price }
     } = body;
+    
+    let customerId = initialCustomerId;
 
     if (!customerId && !customer) {
       return NextResponse.json(
@@ -69,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     // If customerId is not provided, insert new customer and get the id
     if (!customerId && customer) {
-      const customerResult: any = await query(
+      const customerResult = await query(
         `INSERT INTO Customer (name, phoneNumber, email, address, dateOfBirth, gender)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
@@ -80,7 +83,7 @@ export async function POST(request: NextRequest) {
           customer.dateOfBirth,
           customer.gender,
         ]
-      );
+      ) as { insertId: number };
       customerId = customerResult.insertId;
     }
 
@@ -92,13 +95,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert into Order table (prescriptionId is optional)
-    const orderResult: any = await query(
+    const orderResult = await query(
       `INSERT INTO \`Order\` (customerId, totalAmount, status, orderDate${prescriptionId ? ', prescriptionId' : ''})
        VALUES (?, ?, ?, NOW()${prescriptionId ? ', ?' : ''})`,
       prescriptionId
         ? [customerId, totalAmount, status, prescriptionId]
         : [customerId, totalAmount, status]
-    );
+    ) as { insertId: number };
 
     const orderId = orderResult.insertId;
 

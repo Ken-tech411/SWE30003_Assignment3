@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
 export async function GET() {
@@ -11,10 +11,10 @@ export async function GET() {
     ]);
 
     const stats = {
-      customers: Array.isArray(customerCount) ? (customerCount[0] as any)?.count || 0 : 0,
-      orders: Array.isArray(orderCount) ? (orderCount[0] as any)?.count || 0 : 0,
-      products: Array.isArray(productCount) ? (productCount[0] as any)?.count || 0 : 0,
-      branches: Array.isArray(branchCount) ? (branchCount[0] as any)?.count || 0 : 0
+      customers: Array.isArray(customerCount) ? (customerCount[0] as { count: number })?.count || 0 : 0,
+      orders: Array.isArray(orderCount) ? (orderCount[0] as { count: number })?.count || 0 : 0,
+      products: Array.isArray(productCount) ? (productCount[0] as { count: number })?.count || 0 : 0,
+      branches: Array.isArray(branchCount) ? (branchCount[0] as { count: number })?.count || 0 : 0
     };
 
     return NextResponse.json({ stats });

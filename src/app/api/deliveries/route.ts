@@ -13,11 +13,11 @@ export async function GET(request: Request) {
     const orderId = searchParams.get('orderId');
     const customerId = searchParams.get('customerId');
 
-    let where: string[] = [];
-    let params: any[] = [];
+    const where: string[] = [];
+    const params: unknown[] = [];
 
     if (statuses.length) {
-      const statusConds = statuses.map(status => "o.status = ?");
+      const statusConds = statuses.map(() => "o.status = ?");
       where.push(`(${statusConds.join(" OR ")})`);
       params.push(...statuses);
     }
@@ -38,8 +38,9 @@ export async function GET(request: Request) {
        LEFT JOIN Customer c ON o.customerId = c.customerId
        ${whereClause}`,
       params
-    ) as any[];
-    const total = totalRows[0]?.total || 0;
+    ) as unknown[];
+    const totalRowsArray = totalRows as { total: number }[];
+    const total = totalRowsArray[0]?.total || 0;
 
     // Get paginated filtered data
     const [orders] = await pool.query(
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
       ORDER BY o.orderDate DESC
       LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
-    ) as any[];
+    ) as unknown[];
 
     // Get status counts (for all data, not just filtered)
     const [statusCountsRows] = await pool.query(
@@ -67,8 +68,9 @@ export async function GET(request: Request) {
         SUM(CASE WHEN o.status = 'approved' THEN 1 ELSE 0 END) as approved,
         SUM(CASE WHEN o.status = 'delivered' THEN 1 ELSE 0 END) as delivered
       FROM \`Order\` o`
-    ) as any[];
-    const statusCounts = statusCountsRows[0] || { pending: 0, approved: 0, delivered: 0 };
+    ) as unknown[];
+    const statusCountsArray = statusCountsRows as { pending: number; approved: number; delivered: number }[];
+    const statusCounts = statusCountsArray[0] || { pending: 0, approved: 0, delivered: 0 };
 
     return NextResponse.json({ orders, total, statusCounts });
   } catch (error) {
@@ -82,13 +84,14 @@ export async function POST(request: NextRequest) {
   try {
     const { customerId, status, totalAmount, prescriptionId } = await request.json();
 
-    const [result]: any = await pool.query(
+    const [result] = await pool.query(
       `INSERT INTO \`Order\` (customerId, status, totalAmount, prescriptionId, orderDate)
        VALUES (?, ?, ?, ?, NOW())`,
       [customerId, status, totalAmount, prescriptionId]
-    );
+    ) as unknown[];
+    const insertResult = result as { insertId: number };
 
-    return NextResponse.json({ success: true, orderId: result.insertId });
+    return NextResponse.json({ success: true, orderId: insertResult.insertId });
   } catch (error) {
     console.error('Error creating order:', error);
     return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
@@ -104,8 +107,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Missing orderId or status' }, { status: 400 });
     }
 
-    let sql = 'UPDATE `Order` SET status = ? WHERE orderId = ?';
-    const params: any[] = [status, orderId];
+    const sql = 'UPDATE `Order` SET status = ? WHERE orderId = ?';
+    const params: unknown[] = [status, orderId];
 
     await pool.query(sql, params);
 

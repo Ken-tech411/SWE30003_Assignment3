@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN Branch b ON i.branchId = b.branchId
     `;
 
-    let queryParams: any[] = [];
+    const queryParams: unknown[] = [];
 
     // Add branch filter if specified
     if (branchId) {
@@ -67,10 +67,10 @@ export async function PUT(request: NextRequest) {
         );
       }
       
-      const result: any = await query(
+      const result = await query(
         'UPDATE Inventory SET stockQuantity = stockQuantity + ?, updatedAt = NOW() WHERE inventoryId = ?',
         [quantity, inventoryId]
-      );
+      ) as { affectedRows: number };
       
       if (result.affectedRows === 0) {
         return NextResponse.json(
@@ -94,10 +94,10 @@ export async function PUT(request: NextRequest) {
         );
       }
       
-      const result: any = await query(
+      const result = await query(
         'UPDATE Inventory SET stockQuantity = ?, updatedAt = NOW() WHERE inventoryId = ?',
         [quantity, inventoryId]
-      );
+      ) as { affectedRows: number };
       
       if (result.affectedRows === 0) {
         return NextResponse.json(
@@ -128,10 +128,10 @@ export async function PUT(request: NextRequest) {
       
       try {
         // Check if source has enough stock
-        const sourceInventory: any = await query(
+        const sourceInventory = await query(
           'SELECT stockQuantity FROM Inventory WHERE branchId = ? AND productId = ?',
           [fromBranchId, productId]
-        );
+        ) as { stockQuantity: number }[];
         
         if (!Array.isArray(sourceInventory) || sourceInventory.length === 0 || sourceInventory[0].stockQuantity < quantity) {
           await query('ROLLBACK');
@@ -148,10 +148,10 @@ export async function PUT(request: NextRequest) {
         );
 
         // Check if destination inventory exists
-        const destInventory: any = await query(
+        const destInventory = await query(
           'SELECT inventoryId FROM Inventory WHERE branchId = ? AND productId = ?',
           [toBranchId, productId]
-        );
+        ) as { inventoryId: number }[];
 
         if (Array.isArray(destInventory) && destInventory.length > 0) {
           // Update existing inventory
@@ -190,10 +190,10 @@ export async function PUT(request: NextRequest) {
         );
       }
       
-      const result: any = await query(
+      const result = await query(
         'UPDATE Inventory SET stockQuantity = ?, updatedAt = NOW() WHERE inventoryId = ?',
         [quantity, inventoryId]
-      );
+      ) as { affectedRows: number };
       
       if (result.affectedRows === 0) {
         return NextResponse.json(
@@ -230,10 +230,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if inventory item already exists
-    const existing: any = await query(
+    const existing = await query(
       'SELECT inventoryId FROM Inventory WHERE branchId = ? AND productId = ?',
       [branchId, productId]
-    );
+    ) as { inventoryId: number }[];
 
     if (Array.isArray(existing) && existing.length > 0) {
       return NextResponse.json(
@@ -242,10 +242,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result: any = await query(
+    const result = await query(
       'INSERT INTO Inventory (branchId, productId, stockQuantity, updatedAt) VALUES (?, ?, ?, NOW())',
       [branchId, productId, stockQuantity]
-    );
+    ) as { insertId: number };
 
     return NextResponse.json({
       success: true,

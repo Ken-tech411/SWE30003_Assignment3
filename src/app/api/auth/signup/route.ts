@@ -14,19 +14,21 @@ export async function POST(request: Request) {
 
     if (role === "customer") {
       // Try to find existing customer by name (or email, etc.)
-      const [existing]: any = await pool.query(
+      const [existing] = await pool.query(
         `SELECT customerId FROM Customer WHERE name = ? LIMIT 1`,
         [name]
-      );
-      if (existing.length > 0) {
-        linkedId = existing[0].customerId;
+      ) as unknown[];
+      const existingRows = existing as { customerId: number }[];
+      if (existingRows.length > 0) {
+        linkedId = existingRows[0].customerId;
       } else {
         // Insert new customer if not found
-        const [result]: any = await pool.query(
+        const [result] = await pool.query(
           `INSERT INTO Customer (name, phoneNumber, email, address, dateOfBirth, gender) VALUES (?, ?, ?, ?, ?, ?)`,
           [name || "", phoneNumber || "", email || "", address || "", dateOfBirth || null, gender || ""]
-        );
-        linkedId = result.insertId;
+        ) as unknown[];
+        const insertResult = result as { insertId: number };
+        linkedId = insertResult.insertId;
       }
     }
     // You can add similar logic for pharmacist if needed
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
       [username, passwordHash, role, linkedId]
     );
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Signup failed' }, { status: 500 });
   }
 }

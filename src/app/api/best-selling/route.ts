@@ -28,10 +28,13 @@ export async function GET(request: Request) {
 
     // Always return an array, even if empty
     const productsWithStock = Array.isArray(products)
-      ? products.map((product: any) => ({
-          ...product,
-          stock: Math.floor(Math.random() * 15) + 1,
-        }))
+      ? products.map((product: unknown) => {
+          const prod = product as { productId: string; name: string; description: string; price: number; category: string; requiresPrescription: boolean };
+          return {
+            ...prod,
+            stock: Math.floor(Math.random() * 15) + 1,
+          };
+        })
       : [];
 
     // Add headers to prevent caching

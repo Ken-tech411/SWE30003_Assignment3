@@ -60,7 +60,14 @@ export default function UploadPrescriptionPage() {
   const [customerIdFilter, setCustomerIdFilter] = useState("");
   const [debouncedPrescriptionId, setDebouncedPrescriptionId] = useState("");
   const [debouncedCustomerId, setDebouncedCustomerId] = useState("");
-  const [customerInfo, setCustomerInfo] = useState<any>(null);
+  const [customerInfo, setCustomerInfo] = useState<{
+    name?: string;
+    email?: string;
+    address?: string;
+    phoneNumber?: string;
+    dateOfBirth?: string;
+    gender?: string;
+  } | null>(null);
 
   // Debounce filters for backend
   useEffect(() => {
@@ -230,7 +237,7 @@ export default function UploadPrescriptionPage() {
         setCustomerPrescriptions(Array.isArray(data.data) ? data.data : []);
         setTotal(data.total || (Array.isArray(data.data) ? data.data.length : 0));
       }
-    } catch (error) {
+    } catch {
       setFormError("Failed to submit prescription");
     }
   }

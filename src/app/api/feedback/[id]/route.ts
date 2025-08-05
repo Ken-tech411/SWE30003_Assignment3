@@ -23,7 +23,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       values
     );
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to update feedback' }, { status: 500 });
   }
 }
