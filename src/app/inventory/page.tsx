@@ -1303,18 +1303,6 @@ const ExportModal = memo(({
         </div>
 
         <div className="p-6 bg-white space-y-6">
-          {/* Debug Information */}
-          <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
-            <h4 className="font-medium text-yellow-800 mb-2">Debug Information</h4>
-            <div className="text-sm text-yellow-700 space-y-1">
-              <div>Total Inventory Items: {inventoryList.length}</div>
-              <div>Available Branches: {branches.length}</div>
-              <div>Current Preview Count: {getPreviewCount()}</div>
-              <div>Selected Branch ID: {exportConfig.branch}</div>
-              <div>Branch IDs in inventory: {Array.from(new Set(inventoryList.map(item => item.branchId))).join(', ')}</div>
-            </div>
-          </div>
-
           {/* Report Type Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-800 mb-3">Report Type</label>
