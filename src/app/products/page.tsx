@@ -1,8 +1,8 @@
-// Products Management Page
+// Products Management Page with Pagination
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Plus, Filter, Eye, Edit, Package, X, ShoppingCart, User } from 'lucide-react';
+import { Search, Plus, Filter, Eye, Edit, Package, X, ShoppingCart } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 
@@ -30,79 +30,6 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<{ [key: string]: number }>({});
-
-  // Initialize search term and category from URL parameters
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const searchQuery = urlParams.get('search');
-    const categoryQuery = urlParams.get('category');
-    if (searchQuery) setSearchTerm(searchQuery);
-    if (categoryQuery) {
-      // Capitalize first letter to match database format
-      const formattedCategory = categoryQuery.charAt(0).toUpperCase() + categoryQuery.slice(1).toLowerCase();
-      setCategoryFilter(formattedCategory);
-    }
-  }, []);
-
-  // Listen for URL changes (when navigating from navbar)
-  useEffect(() => {
-    const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const searchQuery = urlParams.get('search') || '';
-      const categoryQuery = urlParams.get('category') || 'All Categories';
-      setSearchTerm(searchQuery);
-      if (categoryQuery !== 'All Categories') {
-        const formattedCategory = categoryQuery.charAt(0).toUpperCase() + categoryQuery.slice(1).toLowerCase();
-        setCategoryFilter(formattedCategory);
-      } else {
-        setCategoryFilter('All Categories');
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    // Patch pushState/replaceState to trigger filter updates
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
-
-    history.pushState = function (...args) {
-      originalPushState.apply(history, args);
-      setTimeout(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const searchQuery = urlParams.get('search') || '';
-        const categoryQuery = urlParams.get('category') || 'All Categories';
-        setSearchTerm(searchQuery);
-        if (categoryQuery !== 'All Categories') {
-          const formattedCategory = categoryQuery.charAt(0).toUpperCase() + categoryQuery.slice(1).toLowerCase();
-          setCategoryFilter(formattedCategory);
-        } else {
-          setCategoryFilter('All Categories');
-        }
-      }, 0);
-    };
-
-    history.replaceState = function (...args) {
-      originalReplaceState.apply(history, args);
-      setTimeout(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const searchQuery = urlParams.get('search') || '';
-        const categoryQuery = urlParams.get('category') || 'All Categories';
-        setSearchTerm(searchQuery);
-        if (categoryQuery !== 'All Categories') {
-          const formattedCategory = categoryQuery.charAt(0).toUpperCase() + categoryQuery.slice(1).toLowerCase();
-          setCategoryFilter(formattedCategory);
-        } else {
-          setCategoryFilter('All Categories');
-        }
-      }, 0);
-    };
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      history.pushState = originalPushState;
-      history.replaceState = originalReplaceState;
-    };
-  }, []);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -205,6 +132,46 @@ export default function ProductsPage() {
     }
     return a.name.localeCompare(b.name);
   });
+
+  // Pagination calculations
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = filteredProducts.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  const handleFilterChange = (filterType: string, value: string) => {
+    setCurrentPage(1);
+    if (filterType === 'search') setSearchTerm(value);
+    if (filterType === 'category') setCategoryFilter(value);
+    if (filterType === 'status') setStatusFilter(value);
+  };
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      const startPage = Math.max(1, currentPage - 2);
+      const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+      
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+    }
+    
+    return pages;
+  };
 
   const categories = ['All Categories', ...Array.from(new Set(products.map(p => p.category)))];
 
@@ -324,33 +291,6 @@ export default function ProductsPage() {
     }
   };
 
-  // Show loading while checking authentication
-  if (user === undefined) {
-    return (
-      <main className="p-6 bg-gray-50 min-h-screen">
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-          <span className="ml-3 text-gray-700">Loading...</span>
-        </div>
-      </main>
-    );
-  }
-
-  // Show access denied for unauthenticated users
-  if (!user) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600 mb-4">Please sign in to access the product browse system.</p>
-          <a href="/login" className="text-blue-600 hover:text-blue-800 underline">
-            Go to Login
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   // Show loading state
   if (loading) {
     return (
@@ -405,7 +345,7 @@ export default function ProductsPage() {
                   type="text"
                   placeholder="Search products..."
                   value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
+                  onChange={e => handleFilterChange('search', e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
                 />
               </div>
@@ -415,7 +355,7 @@ export default function ProductsPage() {
               <Filter className="w-4 h-4 text-gray-600" />
               <select
                 value={categoryFilter}
-                onChange={e => setCategoryFilter(e.target.value)}
+                onChange={e => handleFilterChange('category', e.target.value)}
                 className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-40 text-gray-900"
               >
                 {categories.map(category => (
@@ -439,7 +379,7 @@ export default function ProductsPage() {
 
         {/* Products Grid - Customer View */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map(product => {
+          {currentProducts.map(product => {
             const status = getStockStatus(product.stock);
             const isOutOfStock = status === 'OUT OF STOCK';
             return (
@@ -507,6 +447,9 @@ export default function ProductsPage() {
           })}
         </div>
 
+        {/* Pagination */}
+        <PaginationComponent />
+
         {/* Empty State */}
         {filteredProducts.length === 0 && (
           <div className="text-center py-12">
@@ -528,7 +471,7 @@ export default function ProductsPage() {
     );
   }
 
-  // Staff View (existing implementation)
+  // Staff View (pharmacist implementation)
   return (
     <main className="p-6 bg-gray-50 min-h-screen">
       {/* Staff Header */}
@@ -556,7 +499,7 @@ export default function ProductsPage() {
                 type="text"
                 placeholder="Search products..."
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                onChange={e => handleFilterChange('search', e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900"
               />
             </div>
@@ -566,7 +509,7 @@ export default function ProductsPage() {
             <Filter className="w-4 h-4 text-gray-600" />
             <select
               value={categoryFilter}
-              onChange={e => setCategoryFilter(e.target.value)}
+              onChange={e => handleFilterChange('category', e.target.value)}
               className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-40 text-gray-900"
             >
               {categories.map(category => (
@@ -576,7 +519,7 @@ export default function ProductsPage() {
 
             <select
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              onChange={e => handleFilterChange('status', e.target.value)}
               className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-32 text-gray-900"
             >
               <option value="All Status">All Status</option>
@@ -590,7 +533,7 @@ export default function ProductsPage() {
 
       {/* Products Grid - Staff View */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map(product => {
+        {currentProducts.map(product => {
           const status = getStockStatus(product.stock);
           return (
             <div key={product.productId} className="bg-white p-6 rounded-lg shadow-sm border hover:shadow-md transition-shadow">
@@ -640,23 +583,32 @@ export default function ProductsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleViewProduct(product)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
                 >
                   <Eye className="w-4 h-4" />
                   View
                 </button>
                 <button
                   onClick={() => handleEditProduct(product)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                 >
                   <Edit className="w-4 h-4" />
                   Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteProduct(product)}
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Pagination */}
+      <PaginationComponent />
 
       {/* Empty State */}
       {filteredProducts.length === 0 && (
@@ -673,6 +625,7 @@ export default function ProductsPage() {
           product={selectedProduct}
           onClose={closeModal}
           onEdit={() => handleEditProduct(selectedProduct)}
+          onDelete={handleDeleteProduct}
         />
       )}
 
@@ -697,10 +650,11 @@ export default function ProductsPage() {
 }
 
 // Product View Modal Component (for staff)
-function ProductViewModal({ product, onClose, onEdit }: {
+function ProductViewModal({ product, onClose, onEdit, onDelete }: {
   product: Product;
   onClose: () => void;
   onEdit: () => void;
+  onDelete?: (product: Product) => void;
 }) {
   const getStockStatus = (stock: number = 0) => {
     if (stock === 0) return 'OUT OF STOCK';
@@ -765,7 +719,7 @@ function ProductViewModal({ product, onClose, onEdit }: {
 
                 <div>
                   <label className="text-sm font-medium text-gray-600">Product ID</label>
-                  <p className="text-gray-900 font-mono">{product.productId}</p>
+                  <p className="text-gray-900 text-base">{product.productId}</p>
                 </div>
               </div>
             </div>
@@ -787,6 +741,18 @@ function ProductViewModal({ product, onClose, onEdit }: {
               <Edit className="w-4 h-4" />
               Edit Product
             </button>
+            {onDelete && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onDelete(product);
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            )}
             <button
               onClick={onClose}
               className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
@@ -985,7 +951,7 @@ function CustomerProductViewModal({ product, onClose, onAddToCart }: {
 
                 <div>
                   <label className="text-sm font-medium text-gray-600">Product ID</label>
-                  <p className="text-gray-900 font-mono">{product.productId}</p>
+                  <p className="text-gray-900 text-base">{product.productId}</p>
                 </div>
               </div>
             </div>
