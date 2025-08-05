@@ -3,6 +3,7 @@ import pool from '@/lib/db';
 
 export async function PUT(request: Request, context: { params: { id: string } }) {
   const { params } = context;
+
   try {
     const body = await request.json();
     const fields = [];

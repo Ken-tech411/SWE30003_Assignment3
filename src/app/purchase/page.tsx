@@ -197,7 +197,9 @@ export default function PurchasePage() {
           <h1 className="text-3xl font-bold mb-4">Your cart is empty</h1>
           <p className="text-gray-600 mb-6">Add some items to your cart before checking out.</p>
           <Link href="/data">
-            <Button>Browse Products</Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              Browse Products
+            </Button>
           </Link>
         </div>
       </div>
@@ -426,7 +428,11 @@ export default function PurchasePage() {
                 </div>
               </div>
               
-              <Button onClick={handlePlaceOrder} className="w-full" size="lg">
+              <Button 
+                onClick={handlePlaceOrder} 
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
+                size="lg"
+              >
                 Place Order
               </Button>
             </CardContent>

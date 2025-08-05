@@ -5,11 +5,14 @@ import { Badge } from "@/components/ui/badge"
 import { Package, MapPin, Clock, User } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/context/AuthContext"
 
 export default function DeliveryDetailPage() {
   const { orderId } = useParams<{ orderId: string }>()
+  const { user } = useAuth()
   const [order, setOrder] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [prescriptionId, setPrescriptionId] = useState<number | null>(null)
 
   useEffect(() => {
     async function fetchOrder() {
@@ -35,6 +38,43 @@ export default function DeliveryDetailPage() {
     }
     fetchOrder()
   }, [orderId])
+
+  // Fetch prescriptionId for the signed-in customer
+  useEffect(() => {
+    async function fetchPrescriptionId() {
+      if (!user?.linkedId) {
+        setPrescriptionId(null)
+        return
+      }
+      try {
+        // Fetch prescriptions for this customer
+        const res = await fetch(`/api/prescriptions?customerId=${user.linkedId}`)
+        if (!res.ok) {
+          setPrescriptionId(null)
+          return
+        }
+        const data = await res.json()
+        // Find the prescription associated with this order (if possible), otherwise just get the latest
+        if (order?.prescriptionId) {
+          setPrescriptionId(order.prescriptionId)
+        } else if (Array.isArray(data.data) && data.data.length > 0) {
+          // Get the latest prescription for this customer
+          const sorted = data.data.sort((a: any, b: any) =>
+            new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()
+          )
+          setPrescriptionId(sorted[0].prescriptionId)
+        } else {
+          setPrescriptionId(null)
+        }
+      } catch {
+        setPrescriptionId(null)
+      }
+    }
+    // Only fetch if user is customer and order is loaded
+    if (user?.role === "customer" && order) {
+      fetchPrescriptionId()
+    }
+  }, [user, order])
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -119,12 +159,12 @@ export default function DeliveryDetailPage() {
               </div>
               <div className="flex items-center mb-2">
                 <span className="font-medium mr-2">Prescription ID:</span>
-                <span>{order.prescriptionId ?? "N/A"}</span>
+                <span>{prescriptionId ?? "N/A"}</span>
               </div>
 
               {/* Action buttons aligned right */}
               <div className="flex justify-end gap-2 mt-4">
-                {order.status?.toLowerCase() === "pending" && (
+                {user?.role === "pharmacist" && order.status?.toLowerCase() === "pending" && (
                   <>
                     <Button
                       size="sm"
@@ -156,7 +196,7 @@ export default function DeliveryDetailPage() {
                     </Button>
                   </>
                 )}
-                {order.status?.toLowerCase() === "approved" && (
+                {user?.role === "pharmacist" && order.status?.toLowerCase() === "approved" && (
                   <Button
                     size="sm"
                     className="bg-green-500 hover:bg-green-600 text-white"

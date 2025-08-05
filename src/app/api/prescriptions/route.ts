@@ -88,13 +88,38 @@ export async function GET(request: Request) {
         p.uploadDate,
         p.approved,
         p.pharmacistId,
-        p.customerId
+        p.customerId,
+        c.name AS customerName,
+        c.email AS customerEmail,
+        c.address AS customerAddress,
+        c.phoneNumber AS customerPhoneNumber,
+        c.dateOfBirth AS customerDateOfBirth,
+        c.gender AS customerGender
       FROM Prescription p
+      LEFT JOIN Customer c ON p.customerId = c.customerId
       ${whereClause}
       ORDER BY p.uploadDate DESC
       LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
     ) as any[];
+
+    // Map customer info into a nested object for each prescription
+    const data = rows.map((row: any) => ({
+      prescriptionId: row.prescriptionId,
+      imageFile: row.imageFile,
+      uploadDate: row.uploadDate,
+      approved: row.approved,
+      pharmacistId: row.pharmacistId,
+      customerId: row.customerId,
+      customerInfo: {
+        name: row.customerName,
+        email: row.customerEmail,
+        address: row.customerAddress,
+        phoneNumber: row.customerPhoneNumber,
+        dateOfBirth: row.customerDateOfBirth,
+        gender: row.customerGender,
+      }
+    }));
 
     // Get status counts (for all data, not just filtered)
     const [statusCountsRows] = await pool.query(
@@ -106,7 +131,7 @@ export async function GET(request: Request) {
     ) as any[];
     const statusCounts = statusCountsRows[0] || { pending: 0, approved: 0, rejected: 0 };
 
-    return NextResponse.json({ data: rows, total, statusCounts });
+    return NextResponse.json({ data, total, statusCounts });
   } catch (error) {
     console.error('Database error:', error);
     return NextResponse.json({ error: 'Failed to fetch prescriptions' }, { status: 500 });

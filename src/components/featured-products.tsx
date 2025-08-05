@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { AnimatedSection } from "@/components/animated-section"
 import { Package } from "lucide-react"
+import { useRouter } from 'next/navigation';
 
 interface Product {
   productId: string;
@@ -19,6 +20,7 @@ interface Product {
 type Category = 'all' | 'supplement' | 'medicine' | 'device';
 
 export default function FeaturedProducts() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<Category>('all');
@@ -205,25 +207,21 @@ export default function FeaturedProducts() {
     }
   };
 
-  // Generate random discount for each product
-  const getDiscountPercentage = () => {
-    const discounts = ['-15%', '-20%', '-25%', '-30%', 'Buy 2 Get 1', 'Free Gift'];
-    return discounts[Math.floor(Math.random() * discounts.length)];
-  };
-
-  const getDiscountColor = (discount: string) => {
-    if (discount.includes('Buy') || discount.includes('Free')) {
-      return discount.includes('Buy') ? 'bg-orange-500' : 'bg-green-500';
-    }
-    return 'bg-red-500';
-  };
-
   const categories = [
     { id: 'all' as Category, label: 'All' },
     { id: 'supplement' as Category, label: 'Supplement' },
     { id: 'medicine' as Category, label: 'Medicine' },
     { id: 'device' as Category, label: 'Device' },
   ];
+
+  // Remove authentication requirement - let users access products page
+  const handleViewAllProducts = (category?: string) => {
+    const url = category && category !== 'all' 
+      ? `/products?category=${encodeURIComponent(category.charAt(0).toUpperCase() + category.slice(1))}` 
+      : '/products'
+    
+    router.push(url)
+  }
 
   return (
     <AnimatedSection className="bg-white py-16">
@@ -260,64 +258,55 @@ export default function FeaturedProducts() {
           </div>
         )}
 
-        {/* Products Grid */}
+        {/* Products Grid - Ensure no extra content */}
         {!loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {filteredProducts.map((product, index) => {
-              const discount = getDiscountPercentage();
-              const discountColor = getDiscountColor(discount);
-              
-              return (
-                <AnimatedSection key={product.productId} delay={600 + index * 100}>
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
-                    <div className="relative mb-4">
-                      {/* Discount Badge - Top Left */}
-                      <div className={`absolute top-2 left-2 ${discountColor} text-white px-2 py-1 rounded text-sm font-bold z-10`}>
-                        {discount}
-                      </div>
-                      
-                      <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-                        <Package className="w-12 h-12 text-gray-400" />
-                        <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-xs">
-                          {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="mb-2">
-                      <span className={`text-xs px-2 py-1 rounded font-medium ${getCategoryColor(product.category)}`}>
+            {filteredProducts.map((product, index) => (
+              <AnimatedSection key={product.productId} delay={600 + index * 100}>
+                <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow product-card">
+                  {/* Product Image */}
+                  <div className="relative mb-4">
+                    <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Package className="w-12 h-12 text-gray-400" />
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-xs">
                         {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
-                      </span>
-                    </div>
-                    
-                    <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2 min-h-[3rem]">
-                      {product.name}
-                    </h3>
-                    
-                    <div className="mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-blue-600 font-bold text-lg">
-                          ${typeof product.price === 'number' ? product.price.toFixed(2) : product.price}
-                        </span>
-                        {discount.includes('%') && (
-                          <span className="text-gray-400 line-through text-sm">
-                            ${(typeof product.price === 'number' ? (product.price * 1.2).toFixed(2) : '0.00')}
-                          </span>
-                        )}
                       </div>
-                      {product.requiresPrescription && (
-                        <span className="text-xs text-red-600 font-medium">Prescription Required</span>
-                      )}
                     </div>
-                    
-                    {/* Add to Cart Button */}
-                    <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
-                      Add to Cart
-                    </Button>
                   </div>
-                </AnimatedSection>
-              );
-            })}
+                  
+                  {/* Category Badge */}
+                  <div className="mb-2">
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${getCategoryColor(product.category)}`}>
+                      {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+                    </span>
+                  </div>
+                  
+                  {/* Product Name */}
+                  <h3 className="font-semibold text-gray-800 mb-3 line-clamp-2 min-h-[3rem]">
+                    {product.name}
+                  </h3>
+                  
+                  {/* Price - Ensure clean rendering */}
+                  <div className="mb-3">
+                    <span className="text-blue-600 font-bold text-lg">
+                      ${Number(product.price).toFixed(2)}
+                    </span>
+                  </div>
+
+                  {/* Prescription Status - Conditional rendering */}
+                  {product.requiresPrescription ? (
+                    <div className="mb-3">
+                      <span className="text-xs text-red-600 font-medium">Prescription Required</span>
+                    </div>
+                  ) : null}
+                  
+                  {/* Add to Cart Button */}
+                  <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
+                    Add to Cart
+                  </Button>
+                </div>
+              </AnimatedSection>
+            ))}
           </div>
         )}
 
@@ -335,18 +324,19 @@ export default function FeaturedProducts() {
           </div>
         )}
 
-        {/* View All Products Button */}
+        {/* View All Products Button - Remove authentication requirement */}
         {!loading && filteredProducts.length > 0 && (
           <AnimatedSection delay={1400}>
             <div className="text-center">
-              <Link href={`/products${activeCategory !== 'all' ? `?category=${activeCategory}` : ''}`}>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold">
-                  {activeCategory === 'all' 
-                    ? 'View All Products' 
-                    : `View All ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} Products`
-                  }
-                </Button>
-              </Link>
+              <Button 
+                onClick={() => handleViewAllProducts(activeCategory)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold"
+              >
+                {activeCategory === 'all' 
+                  ? 'View All Products' 
+                  : `View All ${activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)} Products`
+                }
+              </Button>
             </div>
           </AnimatedSection>
         )}

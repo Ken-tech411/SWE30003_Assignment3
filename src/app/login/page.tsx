@@ -116,7 +116,10 @@ export default function LoginPage() {
           </>
         )}
         {error && <div className="text-red-500">{error}</div>}
-        <button className="w-full bg-blue-600 text-white py-2 rounded" type="submit">
+        <button
+          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded transition-colors"
+          type="submit"
+        >
           {isSignup ? "Sign Up" : "Log In"}
         </button>
       </form>
@@ -124,14 +127,20 @@ export default function LoginPage() {
         {isSignup ? (
           <span>
             Already have an account?{" "}
-            <button className="text-blue-600" onClick={() => setIsSignup(false)}>
+            <button
+              className="text-orange-600 hover:text-orange-800 font-semibold transition-colors"
+              onClick={() => setIsSignup(false)}
+            >
               Log In
             </button>
           </span>
         ) : (
           <span>
             Don't have an account?{" "}
-            <button className="text-blue-600" onClick={() => setIsSignup(true)}>
+            <button
+              className="text-orange-600 hover:text-orange-800 font-semibold transition-colors"
+              onClick={() => setIsSignup(true)}
+            >
               Sign Up
             </button>
           </span>

@@ -29,15 +29,11 @@ export default function BestSellingProducts() {
     
     const fetchBestSellingProducts = async () => {
       try {
-        console.log('🎯 Starting async fetch...');
         setLoading(true);
         setError(null);
-        
-        // Force no cache
+
         const timestamp = new Date().getTime();
-        const url = `/api/products/best-selling?t=${timestamp}&nocache=${Math.random()}`;
-        console.log('🔥 Component: Fetching from:', url);
-        
+        const url = `/api/best-selling?t=${timestamp}&nocache=${Math.random()}`;
         const response = await fetch(url, {
           method: 'GET',
           headers: {
@@ -47,70 +43,39 @@ export default function BestSellingProducts() {
           },
           cache: 'no-store'
         });
-        
-        console.log('🔥 Component: Response status:', response.status);
-        console.log('🔥 Component: Response ok:', response.ok);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error('🔥 Component: Error response text:', errorText);
           throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
-        
-        const rawText = await response.text();
-        console.log('🔥 Component: Raw response text:', rawText);
-        
-        let data;
-        try {
-          data = JSON.parse(rawText);
-        } catch (parseError) {
-          console.error('🔥 Component: JSON parse error:', parseError);
-          throw new Error(`Invalid JSON response: ${parseError}`);
-        }
-        
-        console.log('🔥 Component: Parsed data:', data);
-        console.log('🔥 Component: Is Array?', Array.isArray(data));
-        
-        // Process API response
+
+        const data = await response.json();
+
         let processedProducts: Product[] = [];
-        
         if (Array.isArray(data) && data.length > 0) {
-          console.log('✅ SUCCESS: Found direct array with', data.length, 'items');
-          
-          processedProducts = data.map((product: any, index: number) => {
-            const formatted = {
-              productId: String(product.productId || product.ProductID || `api-${index}`),
-              name: String(product.name || product.Name || 'Unknown Product'),
-              description: String(product.description || product.Description || 'No description available'),
-              price: parseFloat(product.price || product.Price || 0),
-              category: String(product.category || product.Category || 'other').toLowerCase(),
-              requiresPrescription: Boolean(product.requiresPrescription || product.RequiresPrescription || false),
-              stock: parseInt(String(product.stock || Math.floor(Math.random() * 20) + 1))
-            };
-            console.log(`✅ Formatted product ${index}:`, formatted);
-            return formatted;
-          });
-          
+          processedProducts = data.map((product: any, index: number) => ({
+            productId: String(product.productId || product.ProductID || `api-${index}`),
+            name: String(product.name || product.Name || 'Unknown Product'),
+            description: String(product.description || product.Description || 'No description available'),
+            price: parseFloat(product.price || product.Price || 0),
+            category: String(product.category || product.Category || 'other').toLowerCase(),
+            requiresPrescription: Boolean(product.requiresPrescription || product.RequiresPrescription || false),
+            stock: parseInt(String(product.stock || Math.floor(Math.random() * 20) + 1))
+          }));
           setDataSource('api');
-          console.log('✅ FINAL: Setting API products:', processedProducts);
           setProducts(processedProducts);
           setError(null);
-          
         } else {
-          console.error('❌ INVALID: Unexpected API response format');
           throw new Error(`Invalid API response format. Expected array, got: ${typeof data}`);
         }
-        
       } catch (error) {
-        console.error('💥 FETCH ERROR:', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         setError(errorMessage);
         setDataSource('mock');
-        console.log('🔄 FALLBACK: Using mock data due to error:', errorMessage);
         setMockBestSellers();
       } finally {
         setLoading(false);
-        console.log('🎯 Fetch completed, loading set to false');
       }
     };
 
@@ -219,18 +184,6 @@ export default function BestSellingProducts() {
     }
   };
 
-  const getDiscountPercentage = () => {
-    const discounts = ['-15%', '-20%', '-25%', '-30%', 'Buy 2 Get 1', 'Free Gift'];
-    return discounts[Math.floor(Math.random() * discounts.length)];
-  };
-
-  const getDiscountColor = (discount: string) => {
-    if (discount.includes('Buy') || discount.includes('Free')) {
-      return discount.includes('Buy') ? 'bg-orange-500' : 'bg-green-500';
-    }
-    return 'bg-red-500';
-  };
-
   return (
     <AnimatedSection className="bg-gradient-to-br from-blue-500 via-blue-400 to-blue-600 py-16">
       <div className="container mx-auto px-4">
@@ -238,7 +191,7 @@ export default function BestSellingProducts() {
         <AnimatedSection delay={200}>
           <div className="text-center mb-8">
             <div className="inline-block bg-red-500 text-white px-8 py-3 rounded-full text-xl font-bold shadow-lg">
-               Best Selling Products
+              🔥 Best Selling Products
             </div>
           </div>
         </AnimatedSection>
@@ -252,67 +205,62 @@ export default function BestSellingProducts() {
           </div>
         )}
 
-        {/* Products Grid */}
+        {/* Products Grid - Cleaned up */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.slice(0, 8).map((product, index) => {
-            const discount = getDiscountPercentage();
-            const discountColor = getDiscountColor(discount);
-            
-            return (
-              <AnimatedSection key={product.productId} delay={400 + index * 100}>
-                <div className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="relative mb-4">
-                    <div className={`absolute top-2 left-2 ${discountColor} text-white px-2 py-1 rounded text-sm font-bold z-10`}>
-                      {discount}
-                    </div>
-                    <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Package className="w-12 h-12 text-gray-400" />
-                      <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-xs">
-                        {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
-                      </div>
-                    </div>
-                    {/* Low Stock Badge */}
-                    {product.stock && product.stock <= 10 && (
-                      <div className="absolute bottom-2 right-2 bg-orange-500 text-white px-2 py-1 rounded text-xs font-bold">
-                        Only {product.stock} left!
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="mb-2">
-                    <span className={`text-xs px-2 py-1 rounded font-medium ${getCategoryColor(product.category)}`}>
+          {products.slice(0, 8).map((product, index) => (
+            <AnimatedSection key={product.productId} delay={400 + index * 100}>
+              <div className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow">
+                {/* Product Image */}
+                <div className="relative mb-4">
+                  <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                    <Package className="w-12 h-12 text-gray-400" />
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-500 text-xs">
                       {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
-                    </span>
-                  </div>
-                  
-                  <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2 min-h-[3rem]">
-                    {product.name}
-                  </h3>
-                  
-                  <div className="mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-blue-600 font-bold text-lg">
-                        ${product.price.toFixed(2)}
-                      </span>
-                      {discount.includes('%') && (
-                        <span className="text-gray-400 line-through text-sm">
-                          ${(product.price * 1.2).toFixed(2)}
-                        </span>
-                      )}
                     </div>
-                    {product.requiresPrescription && (
-                      <span className="text-xs text-red-600 font-medium">Prescription Required</span>
-                    )}
                   </div>
-                  
-                  <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
-                    Add to Cart
-                  </Button>
                 </div>
-              </AnimatedSection>
-            );
-          })}
+                
+                {/* Category Badge */}
+                <div className="mb-2">
+                  <span className={`text-xs px-2 py-1 rounded font-medium ${getCategoryColor(product.category)}`}>
+                    {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+                  </span>
+                </div>
+                
+                {/* Product Name */}
+                <h3 className="font-semibold text-gray-800 mb-3 line-clamp-2 min-h-[3rem]">
+                  {product.name}
+                </h3>
+                
+                {/* Price */}
+                <div className="mb-3">
+                  <span className="text-blue-600 font-bold text-lg">
+                    ${product.price.toFixed(2)}
+                  </span>
+                </div>
+
+                {/* Prescription Status */}
+                {product.requiresPrescription && (
+                  <div className="mb-3">
+                    <span className="text-xs text-red-600 font-medium">Prescription Required</span>
+                  </div>
+                )}
+                
+                {/* Add to Cart Button */}
+                <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
+                  Add to Cart
+                </Button>
+              </div>
+            </AnimatedSection>
+          ))}
         </div>
+
+        {/* No Products Found Message */}
+        {!loading && products.length === 0 && (
+          <div className="text-center text-gray-500 py-8">
+            No best selling products found.
+          </div>
+        )}
       </div>
     </AnimatedSection>
   );

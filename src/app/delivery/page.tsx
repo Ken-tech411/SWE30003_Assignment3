@@ -9,7 +9,6 @@ import { Package, Truck, MapPin, Clock, User, Search, CheckCircle } from "lucide
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import NavbarAuthButton from "@/components/NavbarAuthButton";
 
 interface Delivery {
   id: number;
@@ -196,7 +195,7 @@ export default function DeliveryPage() {
       return;
     }
     try {
-      // Pass both orderId and customerId
+      // Pass both orderId and customerId for validation
       const res = await fetch(`/api/orders/track?orderId=${encodeURIComponent(trackingId)}&customerId=${user.customerId}`);
       if (!res.ok) {
         const data = await res.json();
@@ -208,8 +207,8 @@ export default function DeliveryPage() {
         setTrackError("Order not found. Please check your Order ID.");
         return;
       }
-      // Route to the track page with both params (optional, but only orderId is needed for the page)
-      router.push(`/delivery/track?orderId=${encodeURIComponent(trackingId)}`);
+      // Route to the [orderId] page for detailed info
+      router.push(`/delivery/${encodeURIComponent(trackingId)}`);
     } catch (err) {
       setTrackError("Order not found. Please check your Order ID.");
     }
@@ -238,8 +237,7 @@ export default function DeliveryPage() {
 
   if (!user) {
     return (
-      <div className="w-full flex justify-end p-4 border-b bg-white">
-        <NavbarAuthButton />
+      <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center h-96 w-full">
           <div className="text-xl">Please sign in to access this page.</div>
         </div>
@@ -250,10 +248,6 @@ export default function DeliveryPage() {
   // --- Account status bar ---
   return (
     <div>
-      <div className="flex items-center justify-end gap-4 p-4 border-b bg-white">
-        {/* Only show "Hello, Name" and Sign Out */}
-        <NavbarAuthButton />
-      </div>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Delivery Management</h1>
 
@@ -402,7 +396,8 @@ export default function DeliveryPage() {
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {delivery.status?.toLowerCase() === "pending" && (
+                        {/* Only show staff actions for pharmacist */}
+                        {user?.role === "pharmacist" && delivery.status?.toLowerCase() === "pending" && (
                           <>
                             <Button
                               size="sm"
@@ -420,7 +415,7 @@ export default function DeliveryPage() {
                             </Button>
                           </>
                         )}
-                        {delivery.status?.toLowerCase() === "approved" && (
+                        {user?.role === "pharmacist" && delivery.status?.toLowerCase() === "approved" && (
                           <Button
                             size="sm"
                             className="bg-green-500 hover:bg-green-600 text-white"
@@ -498,7 +493,10 @@ export default function DeliveryPage() {
                     value={trackingId}
                     onChange={(e) => setTrackingId(e.target.value)}
                   />
-                  <Button onClick={handleTrackDelivery}>
+                  <Button
+                    className="bg-blue-500 hover:bg-blue-600 text-white"
+                    onClick={handleTrackDelivery}
+                  >
                     <Search className="w-4 h-4 mr-2" />
                     Track
                   </Button>

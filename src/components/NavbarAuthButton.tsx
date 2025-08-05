@@ -15,17 +15,23 @@ export default function NavbarAuthButton() {
   if (!user) {
     return (
       <Link href="/login">
-        <Button variant="outline">Sign In</Button>
+        <Button variant="outline" className="text-white border-white hover:bg-white hover:text-blue-600">
+          Sign In
+        </Button>
       </Link>
     );
   }
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-gray-700">
+      <span className="text-sm text-white">
         Hello, {user.role === "customer" && user.name ? user.name : user.username}
       </span>
-      <Button variant="outline" onClick={handleLogout}>
+      <Button
+        variant="outline"
+        className="text-white border-white hover:bg-white hover:text-blue-600"
+        onClick={handleLogout}
+      >
         Sign Out
       </Button>
     </div>

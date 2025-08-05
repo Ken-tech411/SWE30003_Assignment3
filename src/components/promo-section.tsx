@@ -1,58 +1,53 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { AnimatedSection } from "@/components/animated-section"
 import { ChevronLeft, ChevronRight, Gift, Star, Clock, ShoppingCart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function PromoSection() {
+  const router = useRouter();
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const promoSlides = [
     {
       id: 1,
-      title: "HEALTH CHECK PROGRAM",
-      subtitle: "MEMORY & CONCENTRATION SCREENING",
-      description: "Free brain health screening program by VIETNAM COGNITIVE DISORDERS ASSOCIATION",
-      discount: "SPECIAL OFFER",
-      discountValue: "$10 OFF",
-      bgGradient: "from-blue-600 via-blue-500 to-indigo-600",
-      buttonText: "CHECK NOW",
-      icon: <Star className="w-8 h-8" />
+      title: "VITAMIN & SUPPLEMENTS",
+      subtitle: "IMMUNE SUPPORT COLLECTION",
+      description: "Boost your immunity with our premium vitamins, multivitamins, and essential supplements",
+      discount: "UP TO",
+      discountValue: "25% OFF",
+      bgGradient: "from-green-600 via-green-500 to-emerald-600",
+      buttonText: "SHOP SUPPLEMENTS",
+      icon: <Star className="w-8 h-8" />,
+      category: "Supplement"
     },
     {
       id: 2,
-      title: "HERBAL MEDICINE",
-      subtitle: "BLOOD TONIC",
-      description: "Authentic UK Products",
-      discount: "Up to",
-      discountValue: "20% OFF",
-      bgGradient: "from-pink-500 via-red-500 to-orange-500",
-      buttonText: "Shop Now",
-      icon: <Gift className="w-8 h-8" />
+      title: "PRESCRIPTION MEDICINE",
+      subtitle: "PAIN RELIEF & WELLNESS",
+      description: "Professional medications including acarbose, ibuprofen, and specialized treatments",
+      discount: "SPECIAL",
+      discountValue: "RX READY",
+      bgGradient: "from-red-500 via-red-500 to-orange-500",
+      buttonText: "VIEW MEDICINES",
+      icon: <Gift className="w-8 h-8" />,
+      category: "Medicine"
     },
     {
       id: 3,
-      title: "CANCER GUIDE A-Z",
-      subtitle: "Information compiled and reviewed",
-      description: "by our team of medical experts",
-      discount: "FREE",
-      discountValue: "100%",
-      bgGradient: "from-purple-600 via-purple-500 to-blue-600",
-      buttonText: "LEARN MORE",
-      icon: <Clock className="w-8 h-8" />
+      title: "MEDICAL DEVICES",
+      subtitle: "DIGITAL HEALTH MONITORING",
+      description: "Acetaminophen, brimonidine tartrate, cantaloupe for home care",
+      discount: "NEW ARRIVAL",
+      discountValue: "IN STOCK",
+      bgGradient: "from-blue-600 via-blue-500 to-indigo-600",
+      buttonText: "SHOP DEVICES",
+      icon: <Clock className="w-8 h-8" />,
+      category: "Device"
     },
-    {
-      id: 4,
-      title: "FAMILY CARE",
-      subtitle: "Family Health Package",
-      description: "Comprehensive healthcare for your entire family",
-      discount: "Starting from",
-      discountValue: "$29/month",
-      bgGradient: "from-orange-500 via-red-500 to-pink-500",
-      buttonText: "SUBSCRIBE NOW",
-      icon: <ShoppingCart className="w-8 h-8" />
-    }
   ];
 
   // Auto slide every 5 seconds
@@ -74,6 +69,11 @@ export default function PromoSection() {
 
   const goToSlide = (index: number) => {
     setCurrentSlide(index);
+  };
+
+  // Remove authentication requirement - let users access products page
+  const handleButtonClick = (category: string) => {
+    router.push(`/products?category=${encodeURIComponent(category)}`);
   };
 
   return (
@@ -103,6 +103,7 @@ export default function PromoSection() {
                     </p>
                     
                     <Button 
+                      onClick={() => handleButtonClick(slide.category)}
                       className="bg-white text-gray-800 hover:bg-gray-100 px-8 py-3 rounded-full font-bold text-lg shadow-lg transform hover:scale-105 transition-all duration-300"
                     >
                       {slide.buttonText} ▶
@@ -169,12 +170,13 @@ export default function PromoSection() {
                   </div>
                   <div>
                     <h3 className="font-bold text-lg">QUICK HEALTH CHECK</h3>
-                    <p className="text-sm opacity-90">Free home service</p>
                   </div>
                 </div>
-                <Button className="bg-white text-teal-600 hover:bg-gray-100 font-semibold">
-                  Book Now
-                </Button>
+                <Link href="/prescription">
+                  <Button className="bg-white text-teal-600 hover:bg-gray-100 font-semibold">
+                    Upload Prescription Now
+                  </Button>
+                </Link>
               </div>
               <div className="absolute -top-8 -right-8 w-24 h-24 bg-white/10 rounded-full"></div>
             </div>
@@ -189,13 +191,14 @@ export default function PromoSection() {
                     <Gift className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">GOLD MEMBERSHIP</h3>
-                    <p className="text-sm opacity-90">15% off all orders</p>
+                    <h3 className="font-bold text-lg">MEMBERSHIP</h3>
                   </div>
                 </div>
-                <Button className="bg-white text-orange-600 hover:bg-gray-100 font-semibold">
-                  Join VIP
-                </Button>
+                <Link href="/login">
+                  <Button className="bg-white text-orange-600 hover:bg-gray-100 font-semibold">
+                    Join VIP
+                  </Button>
+                </Link>
               </div>
               <div className="absolute -bottom-8 -left-8 w-24 h-24 bg-white/10 rounded-full"></div>
             </div>

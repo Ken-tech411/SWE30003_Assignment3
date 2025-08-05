@@ -47,6 +47,11 @@ export async function GET(request: NextRequest) {
         o.orderId, 
         o.customerId,        
         c.name as customerName, 
+        c.email as customerEmail,
+        c.address as customerAddress,
+        c.phoneNumber as customerPhoneNumber,
+        c.dateOfBirth as customerDateOfBirth,
+        c.gender as customerGender,
         p.name as productName
       FROM \`Return\` r
       JOIN \`Order\` o ON r.orderId = o.orderId
@@ -57,6 +62,19 @@ export async function GET(request: NextRequest) {
       LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
     ) as any[];
+
+    // Map customer info into a nested object for each return
+    const returnsWithCustomerInfo = returns.map((row: any) => ({
+      ...row,
+      customerInfo: {
+        name: row.customerName,
+        email: row.customerEmail,
+        address: row.customerAddress,
+        phoneNumber: row.customerPhoneNumber,
+        dateOfBirth: row.customerDateOfBirth,
+        gender: row.customerGender,
+      }
+    }));
 
     // --- Get stats for the whole Return table (not paginated/filtered) ---
     const [statsRows] = await pool.query(
@@ -69,7 +87,7 @@ export async function GET(request: NextRequest) {
     ) as any[];
     const stats = statsRows[0] || { pending: 0, approved: 0, rejected: 0, totalRefunds: 0 };
 
-    return NextResponse.json({ returns, total, stats });
+    return NextResponse.json({ returns: returnsWithCustomerInfo, total, stats });
   } catch (error) {
     console.error('Error fetching returns:', error);
     return NextResponse.json({ error: 'Failed to fetch returns' }, { status: 500 });

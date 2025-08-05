@@ -102,11 +102,13 @@ export default function PaymentPage() {
               </div>
 
               <div className="space-y-3">
-                <Link href={`/delivery/track?orderId=${paymentData?.orderId}`} className="w-full">
-                  <Button className="w-full">Track Your Order</Button>
+                <Link href={`/delivery/${paymentData?.orderId}`} className="w-full">
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                    Track Your Order
+                  </Button>
                 </Link>
-                <Link href="/" className="w-full">
-                  <Button variant="outline" className="w-full bg-transparent">
+                <Link href="/products" className="w-full">
+                  <Button variant="outline" className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200">
                     Continue Shopping
                   </Button>
                 </Link>
@@ -128,7 +130,7 @@ export default function PaymentPage() {
             <p className="text-gray-600 mb-6">There was an issue processing your payment. Please try again.</p>
             <div className="space-y-3">
               <Link href="/purchase" className="w-full">
-                <Button variant="outline" className="w-full bg-transparent">
+                <Button variant="outline" className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200">
                   Back to Checkout
                 </Button>
               </Link>

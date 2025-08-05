@@ -2,8 +2,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Plus, Filter, Eye, Edit, Package, X, ShoppingCart } from 'lucide-react';
+import { Search, Plus, Filter, Eye, Edit, Package, X, ShoppingCart, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
 
 interface Product {
   productId: string;
@@ -29,6 +30,79 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cart, setCart] = useState<{ [key: string]: number }>({});
+
+  // Initialize search term and category from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchQuery = urlParams.get('search');
+    const categoryQuery = urlParams.get('category');
+    if (searchQuery) setSearchTerm(searchQuery);
+    if (categoryQuery) {
+      // Capitalize first letter to match database format
+      const formattedCategory = categoryQuery.charAt(0).toUpperCase() + categoryQuery.slice(1).toLowerCase();
+      setCategoryFilter(formattedCategory);
+    }
+  }, []);
+
+  // Listen for URL changes (when navigating from navbar)
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const searchQuery = urlParams.get('search') || '';
+      const categoryQuery = urlParams.get('category') || 'All Categories';
+      setSearchTerm(searchQuery);
+      if (categoryQuery !== 'All Categories') {
+        const formattedCategory = categoryQuery.charAt(0).toUpperCase() + categoryQuery.slice(1).toLowerCase();
+        setCategoryFilter(formattedCategory);
+      } else {
+        setCategoryFilter('All Categories');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    // Patch pushState/replaceState to trigger filter updates
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    history.pushState = function (...args) {
+      originalPushState.apply(history, args);
+      setTimeout(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchQuery = urlParams.get('search') || '';
+        const categoryQuery = urlParams.get('category') || 'All Categories';
+        setSearchTerm(searchQuery);
+        if (categoryQuery !== 'All Categories') {
+          const formattedCategory = categoryQuery.charAt(0).toUpperCase() + categoryQuery.slice(1).toLowerCase();
+          setCategoryFilter(formattedCategory);
+        } else {
+          setCategoryFilter('All Categories');
+        }
+      }, 0);
+    };
+
+    history.replaceState = function (...args) {
+      originalReplaceState.apply(history, args);
+      setTimeout(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchQuery = urlParams.get('search') || '';
+        const categoryQuery = urlParams.get('category') || 'All Categories';
+        setSearchTerm(searchQuery);
+        if (categoryQuery !== 'All Categories') {
+          const formattedCategory = categoryQuery.charAt(0).toUpperCase() + categoryQuery.slice(1).toLowerCase();
+          setCategoryFilter(formattedCategory);
+        } else {
+          setCategoryFilter('All Categories');
+        }
+      }, 0);
+    };
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      history.pushState = originalPushState;
+      history.replaceState = originalReplaceState;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -65,7 +139,6 @@ export default function ProductsPage() {
 
         setProducts(enrichedProducts);
       } catch (err) {
-        console.error('Error fetching products:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch products');
       } finally {
         setLoading(false);
@@ -93,11 +166,44 @@ export default function ProductsPage() {
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = categoryFilter === 'All Categories' || product.category === categoryFilter;
+
+    // Enhanced case-insensitive category matching
+    let matchesCategory = false;
+    if (categoryFilter === 'All Categories') {
+      matchesCategory = true;
+    } else {
+      const filterLower = categoryFilter.toLowerCase().trim();
+      const productCategoryLower = (product.category || '').toLowerCase().trim();
+      matchesCategory = productCategoryLower === filterLower;
+    }
+
     const status = getStockStatus(product.stock);
     const matchesStatus = statusFilter === 'All Status' || status === statusFilter;
 
     return matchesSearch && matchesCategory && matchesStatus;
+  }).sort((a, b) => {
+    // Sort products with search term match first
+    if (searchTerm) {
+      const aNameMatch = a.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const bNameMatch = b.name.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (aNameMatch && !bNameMatch) return -1;
+      if (!aNameMatch && bNameMatch) return 1;
+
+      // If both match, sort by how close the match is (exact match first, then starts with, then contains)
+      const aExactMatch = a.name.toLowerCase() === searchTerm.toLowerCase();
+      const bExactMatch = b.name.toLowerCase() === searchTerm.toLowerCase();
+
+      if (aExactMatch && !bExactMatch) return -1;
+      if (!aExactMatch && bExactMatch) return 1;
+
+      const aStartsWith = a.name.toLowerCase().startsWith(searchTerm.toLowerCase());
+      const bStartsWith = b.name.toLowerCase().startsWith(searchTerm.toLowerCase());
+
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+    }
+    return a.name.localeCompare(b.name);
   });
 
   const categories = ['All Categories', ...Array.from(new Set(products.map(p => p.category)))];
@@ -214,10 +320,36 @@ export default function ProductsPage() {
       }
       closeModal();
     } catch (error) {
-      console.error('Error saving product:', error);
       alert('Failed to save product. Please try again.');
     }
   };
+
+  // Show loading while checking authentication
+  if (user === undefined) {
+    return (
+      <main className="p-6 bg-gray-50 min-h-screen">
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+          <span className="ml-3 text-gray-700">Loading...</span>
+        </div>
+      </main>
+    );
+  }
+
+  // Show access denied for unauthenticated users
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+          <p className="text-gray-600 mb-4">Please sign in to access the product browse system.</p>
+          <a href="/login" className="text-blue-600 hover:text-blue-800 underline">
+            Go to Login
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading state
   if (loading) {
@@ -289,6 +421,17 @@ export default function ProductsPage() {
                 {categories.map(category => (
                   <option key={category} value={category}>{category}</option>
                 ))}
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-32 text-gray-900"
+              >
+                <option value="All Status">All Status</option>
+                <option value="IN STOCK">In Stock</option>
+                <option value="LOW STOCK">Low Stock</option>
+                <option value="OUT OF STOCK">Out of Stock</option>
               </select>
             </div>
           </div>
@@ -769,6 +912,7 @@ function ProductFormModal({ product, onClose, onSubmit, title }: {
     </div>
   );
 }
+
 // Customer Product View Modal Component
 function CustomerProductViewModal({ product, onClose, onAddToCart }: {
   product: Product;

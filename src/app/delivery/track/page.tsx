@@ -122,7 +122,7 @@ export default function TrackDeliveryPage() {
                 </Badge>
               </div>
               <div className="flex items-center mb-2">
-                <span className="font-medium mr-2">Total Amount:</span>
+                <span className="font-medium mr-2">Total Amount (Included Tax):</span>
                 <span>${order.totalAmount ? Number(order.totalAmount).toFixed(2) : "0.00"}</span>
               </div>
               <div className="flex items-center mb-2">

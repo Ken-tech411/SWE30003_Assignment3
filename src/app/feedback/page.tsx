@@ -40,17 +40,14 @@ interface Feedback {
   type?: "general" | "product";
 }
 
+// Only allow 3 statuses: pending, responded, flagged
 function getStatusColor(status?: string) {
-  switch (status) {
+  switch (status?.toLowerCase()) {
     case "pending":
       return "bg-yellow-100 text-yellow-800";
-    case "reviewed":
-      return "bg-blue-100 text-blue-800";
-    case "resolved":
-      return "bg-green-100 text-green-800";
-    case "Flagged":
+    case "flagged":
       return "bg-red-100 text-red-800";
-    case "Responded":
+    case "responded":
       return "bg-green-100 text-green-800";
     default:
       return "bg-gray-100 text-gray-800";
@@ -76,20 +73,27 @@ export default function FeedbackPage() {
   const [staffFeedbacks, setStaffFeedbacks] = useState<Feedback[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Pagination state for staff
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [total, setTotal] = useState(0);
+
+  // Pagination state for customer
+  const [customerPage, setCustomerPage] = useState(1);
+  const customerPageSize = 10;
+
   const [statusCounts, setStatusCounts] = useState<{ [status: string]: number }>({});
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [allCategories, setAllCategories] = useState<string[]>([]);
 
+  // Only 3 statuses
   const statusDisplay: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
     Pending:   { label: "Pending",   icon: <Clock className="w-8 h-8 text-yellow-500" />, color: "text-yellow-500" },
-    Responded: { label: "Responded", icon: <CheckCircle className="w-8 h-8 text-green-500" />, color: "text-green-500" },
-    Flagged:   { label: "Flagged",   icon: <Flag className="w-8 h-8 text-red-500" />, color: "text-red-500" },
+    responded: { label: "Responded", icon: <CheckCircle className="w-8 h-8 text-green-500" />, color: "text-green-500" },
+    flagged:   { label: "Flagged",   icon: <Flag className="w-8 h-8 text-red-500" />, color: "text-red-500" },
   };
-  const allStatuses = ["Responded", "Flagged", "Pending"];
+  const allStatuses = ["responded", "flagged", "Pending"];
 
   // Fetch products for the entered orderId (only for product feedback)
   useEffect(() => {
@@ -270,24 +274,22 @@ export default function FeedbackPage() {
     );
   }
 
+  // --- Pagination helpers ---
+  const totalStaffPages = Math.ceil(total / pageSize);
+  const totalCustomerPages = Math.ceil(customerFeedbacks.length / customerPageSize);
+  const paginatedCustomerFeedbacks = customerFeedbacks.slice(
+    (customerPage - 1) * customerPageSize,
+    customerPage * customerPageSize
+  );
+
   return (
     <div>
-      <div className="flex items-center justify-end gap-4 p-4 border-b bg-white">
-        <div className="text-sm text-gray-700">
-          Signed in as: <span className="font-semibold">{user.username}</span>
-          {" · "}
-          <span className="capitalize">{user.role}</span>
-        </div>
-        <NavbarAuthButton />
-      </div>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Customer Feedback</h1>
         {/* Only show Customer view for customers */}
         {user.role === "customer" && (
           <div className="space-y-6">
-            {/* --- Customer Feedback Form and History (from your TabsContent value="customer") --- */}
-            {/* ...copy your customer feedback UI here... */}
-            {/* --- Begin Customer Feedback Form --- */}
+            {/* --- Customer Feedback Form and History --- */}
             <Card className="overflow-visible">
               <CardHeader>
                 <CardTitle>Submit Your Feedback</CardTitle>
@@ -442,22 +444,22 @@ export default function FeedbackPage() {
                 <Card>
                   <CardContent className="p-6 text-center">Loading...</CardContent>
                 </Card>
-              ) : customerFeedbacks.length === 0 ? (
+              ) : paginatedCustomerFeedbacks.length === 0 ? (
                 <Card>
                   <CardContent className="p-6 text-center">
                     No feedback found for this {feedbackType === "general" ? "type" : "order"}.
                   </CardContent>
                 </Card>
               ) : (
-                customerFeedbacks.map((fb) => (
+                paginatedCustomerFeedbacks.map((fb) => (
                   <Card key={fb.feedbackId} className="border rounded-lg mb-4">
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             {fb.status === "pending" && <Clock className="w-4 h-4" />}
-                            {fb.status === "reviewed" && <CheckCircle className="w-4 h-4" />}
-                            {fb.status === "resolved" && <CheckCircle className="w-4 h-4 text-green-500" />}
+                            {fb.status === "responded" && <CheckCircle className="w-4 h-4 text-green-500" />}
+                            {fb.status === "flagged" && <Flag className="w-4 h-4 text-red-500" />}
                             <Badge className={getStatusColor(fb.status)}>
                               {fb.status?.toUpperCase() || "PENDING"}
                             </Badge>
@@ -491,9 +493,54 @@ export default function FeedbackPage() {
                       <div className="mb-2">
                         <span className="font-semibold">Comments:</span> {fb.comments}
                       </div>
+                      {fb.isFlagged && (
+                        <div className="mt-2 p-3 rounded bg-red-50 border border-red-200 text-red-700 text-sm">
+                          This feedback violates Long Châu’s policy and is under review.
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))
+              )}
+              {/* Pagination Controls for Customer */}
+              {totalCustomerPages > 1 && (
+                <div className="flex justify-center items-center space-x-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={customerPage === 1}
+                    onClick={() => setCustomerPage(1)}
+                  >
+                    First
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={customerPage === 1}
+                    onClick={() => setCustomerPage((prev) => Math.max(1, prev - 1))}
+                  >
+                    &lt;
+                  </Button>
+                  <span className="px-2">
+                    Page {customerPage} of {totalCustomerPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={customerPage === totalCustomerPages}
+                    onClick={() => setCustomerPage((prev) => Math.min(totalCustomerPages, prev + 1))}
+                  >
+                    &gt;
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={customerPage === totalCustomerPages}
+                    onClick={() => setCustomerPage(totalCustomerPages)}
+                  >
+                    Last
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -585,97 +632,199 @@ export default function FeedbackPage() {
                   <CardContent className="p-6 text-center">No feedback found.</CardContent>
                 </Card>
               ) : (
-                staffFeedbacks.map((fb) => (
-                  <Card key={fb.feedbackId} className="border rounded-lg mb-4">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            {fb.status === "pending" && <Clock className="w-4 h-4" />}
-                            {fb.status === "reviewed" && <CheckCircle className="w-4 h-4" />}
-                            {fb.status === "resolved" && <CheckCircle className="w-4 h-4 text-green-500" />}
-                            <Badge className={getStatusColor(fb.status)}>
-                              {fb.status?.toUpperCase() || "PENDING"}
-                            </Badge>
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            Feedback ID: {fb.feedbackId}
-                            {fb.customerId && <> | Customer ID: {fb.customerId}</>}
-                            {fb.orderId && <> | Order ID: {fb.orderId}</>}
-                            {fb.category && <> | Category: {fb.category}</>}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {fb.channel && <>Channel: {fb.channel} | </>}
-                            Submitted: {fb.submittedDate ? new Date(fb.submittedDate).toLocaleDateString() : ""}
-                          </div>
-                        </div>
-                        <div className="text-right min-w-[120px]">
-                          <div className="flex items-center justify-end gap-1 font-medium text-yellow-500">
-                            {fb.rating
-                              ? [...Array(fb.rating)].map((_, i) => (
-                                  <Star key={i} className="w-5 h-5 fill-yellow-400" />
-                                ))
-                              : <span className="text-gray-400">No rating</span>
-                            }
-                            {[...Array(5 - (fb.rating || 0))].map((_, i) => (
-                              <Star key={i} className="w-5 h-5 text-gray-300" />
-                            ))}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {fb.lastUpdated && <>Last Updated: {new Date(fb.lastUpdated).toLocaleDateString()}</>}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mb-2">
-                        <span className="font-semibold">Comments:</span> {fb.comments}
-                      </div>
-                      {/* Staff actions (optional) */}
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {fb.status === "pending" && (
-                          <Button
-                            size="sm"
-                            className="bg-blue-500 hover:bg-blue-600 text-white"
-                            onClick={() => updateFeedback(fb.feedbackId, { status: "reviewed" })}
-                          >
-                            Mark Reviewed
-                          </Button>
-                        )}
-                        {fb.status === "reviewed" && (
-                          <Button
-                            size="sm"
-                            className="bg-green-500 hover:bg-green-600 text-white"
-                            onClick={() => updateFeedback(fb.feedbackId, { status: "resolved" })}
-                          >
-                            Mark as Resolved
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                staffFeedbacks.map((fb) => <StaffFeedbackCard key={fb.feedbackId} fb={fb} updateFeedback={updateFeedback} />)
               )}
             </div>
-            <div className="flex justify-center items-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => setPage(prev => Math.max(prev - 1, 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page * pageSize >= total}
-                onClick={() => setPage(prev => Math.min(prev + 1, Math.ceil(total / pageSize)))}
-              >
-                Next
-              </Button>
-            </div>
+            {/* Pagination Controls for Staff */}
+            {totalStaffPages > 1 && (
+              <div className="flex justify-center items-center space-x-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage(1)}
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                >
+                  &lt;
+                </Button>
+                <span className="px-2">
+                  Page {page} of {totalStaffPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === totalStaffPages}
+                  onClick={() => setPage((prev) => Math.min(totalStaffPages, prev + 1))}
+                >
+                  &gt;
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === totalStaffPages}
+                  onClick={() => setPage(totalStaffPages)}
+                >
+                  Last
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// --- Staff Feedback Card with only 3 statuses and NO resolve button ---
+function StaffFeedbackCard({
+  fb,
+  updateFeedback,
+}: {
+  fb: Feedback;
+  updateFeedback: (id: number, updates: Partial<Feedback>) => Promise<void>;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+  const [staffResponse, setStaffResponse] = useState(fb.response || "");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    setStaffResponse(fb.response || "");
+  }, [fb.feedbackId, fb.response]);
+
+  // Disable all actions if flagged or responded
+  const isActionDisabled = isSubmitting || fb.isFlagged || fb.status === "responded";
+
+  const handleRespond = async () => {
+    if (!staffResponse.trim()) {
+      alert("Response cannot be empty");
+      return;
+    }
+    setIsSubmitting(true);
+    await updateFeedback(fb.feedbackId, { response: staffResponse, status: "responded" });
+    setIsSubmitting(false);
+  };
+
+  const handleFlag = async () => {
+    setIsSubmitting(true);
+    await updateFeedback(fb.feedbackId, { isFlagged: !fb.isFlagged, status: !fb.isFlagged ? "flagged" : fb.status });
+    setIsSubmitting(false);
+  };
+
+  return (
+    <Card className="border rounded-lg mb-4">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              {fb.status === "pending" && <Clock className="w-4 h-4" />}
+              {fb.status === "responded" && <CheckCircle className="w-4 h-4 text-green-500" />}
+              {fb.status === "flagged" && <Flag className="w-4 h-4 text-red-500" />}
+              <Badge className={getStatusColor(fb.status)}>
+                {fb.status?.toUpperCase() || "PENDING"}
+              </Badge>
+            </div>
+            <div className="text-sm text-gray-600">
+              Feedback ID: {fb.feedbackId}
+              {fb.customerId && <> | Customer ID: {fb.customerId}</>}
+              {fb.orderId && <> | Order ID: {fb.orderId}</>}
+              {fb.category && <> | Category: {fb.category}</>}
+            </div>
+            <div className="text-xs text-gray-400">
+              {fb.channel && <>Channel: {fb.channel} | </>}
+              Submitted: {fb.submittedDate ? new Date(fb.submittedDate).toLocaleDateString() : ""}
+            </div>
+          </div>
+          <div className="text-right min-w-[120px]">
+            <div className="flex items-center justify-end gap-1 font-medium text-yellow-500">
+              {fb.rating
+                ? [...Array(fb.rating)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 fill-yellow-400" />
+                  ))
+                : <span className="text-gray-400">No rating</span>
+              }
+              {[...Array(5 - (fb.rating || 0))].map((_, i) => (
+                <Star key={i} className="w-5 h-5 text-gray-300" />
+              ))}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {fb.lastUpdated && <>Last Updated: {new Date(fb.lastUpdated).toLocaleDateString()}</>}
+            </div>
+          </div>
+        </div>
+        <div className="mb-2">
+          <span className="font-semibold">Comments:</span> {fb.comments}
+        </div>
+        {/* Staff actions */}
+        <div className="flex flex-wrap gap-2 mt-2">
+          <Button
+            size="sm"
+            className="bg-red-500 hover:bg-red-600 text-white"
+            onClick={handleFlag}
+            disabled={isActionDisabled}
+          >
+            {fb.isFlagged ? "Unflag" : "Flag"}
+          </Button>
+          <Button
+            size="sm"
+            className="bg-blue-500 hover:bg-blue-600 text-white"
+            onClick={handleRespond}
+            disabled={isActionDisabled}
+          >
+            Respond
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDetails((v) => !v)}
+          >
+            {showDetails ? "Hide Details" : "Show Details"}
+          </Button>
+        </div>
+        {showDetails && (
+          <div className="mt-4 p-3 border rounded bg-gray-50 text-sm">
+            <div><strong>Feedback ID:</strong> {fb.feedbackId}</div>
+            {fb.customerId && <div><strong>Customer ID:</strong> {fb.customerId}</div>}
+            {fb.orderId && <div><strong>Order ID:</strong> {fb.orderId}</div>}
+            <div><strong>Category:</strong> {fb.category}</div>
+            <div><strong>Channel:</strong> {fb.channel}</div>
+            <div><strong>Status:</strong> {fb.status?.toUpperCase() || "PENDING"}</div>
+            <div><strong>Flagged:</strong> {fb.isFlagged ? "Yes" : "No"}</div>
+            {fb.response && <div><strong>Response:</strong> {fb.response}</div>}
+            {fb.lastUpdated && (
+              <div>
+                <strong>Last Updated:</strong> {new Date(fb.lastUpdated).toLocaleDateString()}
+              </div>
+            )}
+            {/* Staff Response Section */}
+            <div className="mt-4">
+              <label className="block font-semibold mb-1" htmlFor={`response-${fb.feedbackId}`}>
+                Staff Response:
+              </label>
+              <textarea
+                id={`response-${fb.feedbackId}`}
+                className="w-full border rounded px-2 py-1 mb-2"
+                rows={3}
+                value={staffResponse}
+                onChange={e => setStaffResponse(e.target.value)}
+                placeholder="Write your response to the customer..."
+                disabled={isActionDisabled}
+              />
+              {fb.isFlagged && (
+                <div className="mt-2 p-2 rounded bg-red-50 border border-red-200 text-red-700 text-sm">
+                  This feedback violates Long Châu’s policy and is under review.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

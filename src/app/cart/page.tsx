@@ -125,12 +125,11 @@ export default function CartPage() {
   if (!user) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-end gap-4 p-4 border-b bg-white">
-          <NavbarAuthButton />
-        </div>
         <div className="text-center mt-16">
           <p className="mb-4 text-lg">Please sign in to view your cart.</p>
-          <NavbarAuthButton />
+          <Link href="/login">
+            <Button className="bg-orange-500 text-white hover:bg-orange-600">Sign In</Button>
+          </Link>
         </div>
       </div>
     )
@@ -239,7 +238,7 @@ export default function CartPage() {
               </div>
               <Link href="/purchase" className="w-full">
                 <Button
-                  className="w-full"
+                  className="w-full bg-orange-500 text-white hover:bg-orange-600"
                   size="lg"
                   disabled={
                     cartItems.length === 0 ||

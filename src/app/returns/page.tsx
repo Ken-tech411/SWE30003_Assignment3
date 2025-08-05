@@ -11,6 +11,7 @@ import { Clock, CheckCircle, AlertCircle, Package, RefreshCw } from "lucide-reac
 import { useAuth } from "@/context/AuthContext";
 import NavbarAuthButton from "@/components/NavbarAuthButton";
 
+// 1. Update the ReturnItem interface to support customerInfo
 interface ReturnItem {
   returnId: number
   orderId: number
@@ -20,10 +21,16 @@ interface ReturnItem {
   status: string
   refundAmount: number
   submittedDate: string
-  customerName?: string
   productName?: string
   customerId?: number
-  linkedId?: number
+  customerInfo?: {
+    name?: string
+    email?: string
+    address?: string
+    phoneNumber?: string
+    dateOfBirth?: string
+    gender?: string
+  }
 }
 
 export default function ReturnsPage() {
@@ -276,7 +283,7 @@ export default function ReturnsPage() {
   if (!user) {
     return (
       <div className="w-full flex justify-end p-4 border-b bg-white">
-        <NavbarAuthButton />
+        {/* <NavbarAuthButton /> removed */}
         <div className="flex justify-center items-center h-96 w-full">
           <div className="text-xl">Please sign in to access this page.</div>
         </div>
@@ -288,8 +295,7 @@ export default function ReturnsPage() {
   return (
     <div>
       <div className="flex items-center justify-end gap-4 p-4 border-b bg-white">
-        {/* Only show "Hello, Name" and Sign Out */}
-        <NavbarAuthButton />
+        {/* <NavbarAuthButton /> removed */}
       </div>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Returns & Exchanges</h1>
@@ -416,14 +422,12 @@ export default function ReturnsPage() {
                             Return ID: {item.returnId} | Order ID: {item.orderId} | Product ID: {item.productId}
                           </div>
                           <div className="text-xs text-gray-400">
-                            {item.customerName && <>Customer: {item.customerName} | </>}
-                            {item.productName && <>Product: {item.productName}</>}
+                            {item.customerId && (
+                              <div className="text-xs text-gray-400">
+                                Customer ID: {item.customerId}
+                              </div>
+                            )}
                           </div>
-                          {item.customerId && (
-                            <div className="text-xs text-gray-400">
-                              Customer ID: {item.customerId}
-                            </div>
-                          )}
                         </div>
                         <div className="text-right">
                           <div className="font-medium text-blue-700">
@@ -451,14 +455,14 @@ export default function ReturnsPage() {
                           <>
                             <Button
                               size="sm"
-                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
                               onClick={() => updateReturnStatus(item.returnId, "approved")}
                             >
                               Approve
                             </Button>
                             <Button
                               size="sm"
-                              className="bg-red-500 hover:bg-red-600 text-white"
+                              className="bg-red-600 hover:bg-red-700 text-white"
                               onClick={() => updateReturnStatus(item.returnId, "rejected")}
                             >
                               Reject
@@ -468,6 +472,7 @@ export default function ReturnsPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                           onClick={() => {
                             setSelectedReturn(item);
                             setViewDetailOpen(true);
@@ -488,6 +493,7 @@ export default function ReturnsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                   disabled={staffPage === 1}
                   onClick={() => setStaffPage(1)}
                 >
@@ -496,6 +502,7 @@ export default function ReturnsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                   disabled={staffPage === 1}
                   onClick={() => setStaffPage((prev) => Math.max(1, prev - 1))}
                 >
@@ -507,6 +514,7 @@ export default function ReturnsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                   disabled={staffPage === Math.ceil(staffTotal / staffPageSize) || staffTotal === 0}
                   onClick={() => setStaffPage((prev) => Math.min(Math.ceil(staffTotal / staffPageSize), prev + 1))}
                 >
@@ -515,6 +523,7 @@ export default function ReturnsPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                   disabled={staffPage === Math.ceil(staffTotal / staffPageSize) || staffTotal === 0}
                   onClick={() => setStaffPage(Math.max(1, Math.ceil(staffTotal / staffPageSize)))}
                 >
@@ -594,7 +603,7 @@ export default function ReturnsPage() {
 
                 <Button
                   onClick={handleReturnSubmit}
-                  className="w-full"
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white"
                   disabled={!!orderError}
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
@@ -662,6 +671,7 @@ export default function ReturnsPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                           onClick={() => {
                             setSelectedReturn(item);
                             setViewDetailOpen(true);
@@ -677,6 +687,7 @@ export default function ReturnsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                       disabled={page === 1}
                       onClick={() => setPage(1)}
                     >
@@ -685,6 +696,7 @@ export default function ReturnsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                       disabled={page === 1}
                       onClick={() => setPage((prev) => Math.max(1, prev - 1))}
                     >
@@ -696,6 +708,7 @@ export default function ReturnsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                       disabled={page === Math.ceil(total / pageSize) || total === 0}
                       onClick={() => setPage((prev) => Math.min(Math.ceil(total / pageSize), prev + 1))}
                     >
@@ -704,6 +717,7 @@ export default function ReturnsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                       disabled={page === Math.ceil(total / pageSize) || total === 0}
                       onClick={() => setPage(Math.max(1, Math.ceil(total / pageSize)))}
                     >
@@ -738,8 +752,26 @@ export default function ReturnsPage() {
                 <span className="font-semibold">Product ID:</span> {selectedReturn.productId}
               </div>
               <div className="mb-2">
-                <span className="font-semibold">Customer Name:</span> {selectedReturn.customerName || "N/A"}
+                <span className="font-semibold">Customer ID:</span> {selectedReturn.customerId ?? "N/A"}
               </div>
+              {/* Show customer info in modal */}
+              {selectedReturn.customerInfo && (
+                <div className="mb-2 text-xs text-gray-600">
+                  <strong>Name:</strong> {selectedReturn.customerInfo.name || "N/A"}
+                  {selectedReturn.customerInfo.dateOfBirth && (
+                    <> | <strong>DOB:</strong> {new Date(selectedReturn.customerInfo.dateOfBirth).toLocaleDateString()}</>
+                  )}
+                  {selectedReturn.customerInfo.email && (
+                    <> | <strong>Email:</strong> {selectedReturn.customerInfo.email}</>
+                  )}
+                  {selectedReturn.customerInfo.address && (
+                    <> | <strong>Address:</strong> {selectedReturn.customerInfo.address}</>
+                  )}
+                  {selectedReturn.customerInfo.phoneNumber && (
+                    <> | <strong>Phone:</strong> {selectedReturn.customerInfo.phoneNumber}</>
+                  )}
+                </div>
+              )}
               <div className="mb-2">
                 <span className="font-semibold">Product Name:</span> {selectedReturn.productName || "N/A"}
               </div>
@@ -758,11 +790,6 @@ export default function ReturnsPage() {
               <div className="mb-2">
                 <span className="font-semibold">Submitted Date:</span> {new Date(selectedReturn.submittedDate).toLocaleDateString()}
               </div>
-              {selectedReturn.customerId && (
-                <div className="mb-2">
-                  <span className="font-semibold">Customer ID:</span> {selectedReturn.customerId}
-                </div>
-              )}
             </div>
           </div>
         )}
