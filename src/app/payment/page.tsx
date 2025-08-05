@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircle, Clock, AlertCircle } from "lucide-react"
@@ -19,7 +19,7 @@ function getDisplayMethod(method: string) {
   }
 }
 
-export default function PaymentPage() {
+function PaymentContent() {
   const [paymentStatus, setPaymentStatus] = useState<"processing" | "success" | "failed">("processing")
   const [paymentData, setPaymentData] = useState<{
     orderId: number;
@@ -156,5 +156,32 @@ export default function PaymentPage() {
       </div>
       <Footer />
     </div>
+  )
+}
+
+function PaymentFallback() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <div className="container mx-auto px-4 py-8 flex-1">
+        <div className="max-w-md mx-auto">
+          <Card>
+            <CardContent className="text-center py-12">
+              <Clock className="w-16 h-16 mx-auto mb-4 text-blue-500 animate-spin" />
+              <h2 className="text-2xl font-bold mb-2">Loading Payment</h2>
+              <p className="text-gray-600">Please wait...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  )
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={<PaymentFallback />}>
+      <PaymentContent />
+    </Suspense>
   )
 }
