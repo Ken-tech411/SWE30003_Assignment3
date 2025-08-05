@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Star, User, Clock, CheckCircle, Flag } from "lucide-react";
+import { MessageSquare, Star, Clock, CheckCircle, Flag } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import NavbarAuthButton from "@/components/NavbarAuthButton";
 import { Footer } from "@/components/footer";
@@ -169,16 +169,6 @@ export default function FeedbackPage() {
     setPage(1);
   }, [selectedStatuses, selectedCategories]);
 
-  const renderStars = (value: number) => (
-    <div className="flex">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Star
-          key={star}
-          className={`w-5 h-5 ${value >= star ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`}
-        />
-      ))}
-    </div>
-  );
 
   const handleSubmitFeedback = async () => {
     if (
@@ -235,7 +225,7 @@ export default function FeedbackPage() {
         }
         setCustomerFeedbacks(filtered);
       }
-    } catch (error) {
+    } catch {
       alert("Failed to submit feedback");
     }
   };

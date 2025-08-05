@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Clock, CheckCircle, AlertCircle, Package, RefreshCw } from "lucide-react"
 import { useAuth } from "@/context/AuthContext";
-import NavbarAuthButton from "@/components/NavbarAuthButton";
 import { Footer } from "@/components/footer"
 
 // 1. Update the ReturnItem interface to support customerInfo
@@ -141,7 +140,7 @@ export default function ReturnsPage() {
       const data = await response.json();
       setCustomerReturns(Array.isArray(data.returns) ? data.returns : []);
       setTotal(data.total || (Array.isArray(data.returns) ? data.returns.length : 0));
-    } catch (error) {
+    } catch {
       setCustomerReturns([]);
       setTotal(0);
     } finally {
@@ -163,8 +162,8 @@ export default function ReturnsPage() {
       setStaffReturns(data.returns || []);
       setStats(data.stats || { pending: 0, approved: 0, rejected: 0, totalRefunds: 0 });
       setStaffTotal(data.total || (Array.isArray(data.returns) ? data.returns.length : 0));
-    } catch (error) {
-      console.error('Error fetching all returns:', error);
+    } catch {
+      console.error('Error fetching all returns');
     } finally {
       setLoading(false);
     }

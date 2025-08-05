@@ -107,8 +107,8 @@ export default function ProductsPage() {
         }
 
         // Merge products with stock information
-        const enrichedProducts = (data.products || []).map((product: any) => {
-          const inventoryItem = inventoryData.find((inv: any) => inv.productId === product.productId);
+        const enrichedProducts = (data.products || []).map((product: Record<string, unknown>) => {
+          const inventoryItem = inventoryData.find((inv: Record<string, unknown>) => inv.productId === product.productId);
           return {
             ...product,
             price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
@@ -211,7 +211,7 @@ export default function ProductsPage() {
       }
     } else {
       let startPage = Math.max(1, currentPage - 2);
-      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
       if (endPage - startPage < maxVisiblePages - 1) {
         startPage = Math.max(1, endPage - maxVisiblePages + 1);
       }
@@ -331,7 +331,7 @@ export default function ProductsPage() {
         alert('Product updated successfully!');
       }
       closeModal();
-    } catch (error) {
+    } catch {
       alert('Failed to save product. Please try again.');
     }
   };

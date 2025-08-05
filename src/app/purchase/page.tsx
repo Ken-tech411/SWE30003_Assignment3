@@ -74,7 +74,7 @@ export default function PurchasePage() {
           zipCode: ''
         })
       }
-    } catch (error) {
+    } catch {
       // It's okay if customer is not found (guest)
     }
   }

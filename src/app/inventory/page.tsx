@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { Search, Download, RefreshCw, TrendingUp, TrendingDown, Minus, Edit, Package, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -20,11 +21,6 @@ interface Inventory {
   contactNumber?: string;
 }
 
-interface Product {
-  productId: string;
-  name: string;
-  category?: string;
-}
 
 interface Branch {
   branchId: number;
@@ -317,8 +313,8 @@ export default function ImprovedInventoryPage() {
       const branchesData = branchesResult.branches || [];
 
       // The inventory data now comes with branch information already joined
-      const enrichedInventory = inventoryData.map((item: any) => {
-        const product = productsData.find((p: any) => p.productId === item.productId);
+      const enrichedInventory = inventoryData.map((item: Record<string, unknown>) => {
+        const product = productsData.find((p: Record<string, unknown>) => p.productId === item.productId);
         return {
           ...item,
           name: item.name || product?.name || 'Unknown Product',
@@ -326,7 +322,7 @@ export default function ImprovedInventoryPage() {
           cost: Number(item.price || product?.price || 0),
           quantity: item.quantity || 0,
           threshold: item.threshold || 30,
-          lastRestocked: item.updatedAt ? new Date(item.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          lastRestocked: typeof item.updatedAt === 'string' || typeof item.updatedAt === 'number' ? new Date(item.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           branchLocation: item.branchLocation || `Branch ${item.branchId}`,
           managerName: item.managerName || 'Unknown Manager',
           contactNumber: item.contactNumber || 'N/A'
@@ -694,9 +690,9 @@ export default function ImprovedInventoryPage() {
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
             <p className="text-gray-600 mb-4">Please sign in to access the inventory management system.</p>
-            <a href="/login" className="text-blue-600 hover:text-blue-800 underline">
+            <Link href="/login" className="text-blue-600 hover:text-blue-800 underline">
               Go to Login
-            </a>
+            </Link>
           </div>
         </div>
         <Footer />
@@ -713,9 +709,9 @@ export default function ImprovedInventoryPage() {
             <p className="text-gray-600 mb-4">
               Only pharmacists and administrators can access the inventory management system.
             </p>
-            <a href="/" className="text-blue-600 hover:text-blue-800 underline">
+            <Link href="/" className="text-blue-600 hover:text-blue-800 underline">
               Return to Home
-            </a>
+            </Link>
           </div>
         </div>
         <Footer />
@@ -1198,7 +1194,7 @@ const EditInventoryModal = memo(({ item, onClose, onSubmit }: {
   );
 });
 
-const ExportModal = ({ 
+const ExportModal = memo(({ 
   onClose, 
   onExport, 
   categories, 
@@ -1521,4 +1517,10 @@ const ExportModal = ({
       </div>
     </div>
   );
-};
+});
+
+ExportModal.displayName = 'ExportModal';
+StatsCard.displayName = 'StatsCard';
+InventoryRow.displayName = 'InventoryRow';
+RestockModal.displayName = 'RestockModal';
+EditInventoryModal.displayName = 'EditInventoryModal';
