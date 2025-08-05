@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { UploadCloud, CheckCircle, XCircle, Clock } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
+import { Footer } from "@/components/footer"
 
 interface Prescription {
   prescriptionId: number
@@ -265,6 +266,7 @@ export default function UploadPrescriptionPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">Loading prescriptions...</div>
+        <Footer />
       </div>
     );
   }
@@ -275,6 +277,7 @@ export default function UploadPrescriptionPage() {
         <div className="flex justify-center items-center h-96 w-full">
           <div className="text-xl">Please sign in to access this page.</div>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -718,11 +721,11 @@ export default function UploadPrescriptionPage() {
                     </a>
                   ))}
               </div>
-              {/* Removed the old "Close" button here */}
             </div>
           </div>
         )}
       </div>
+      <Footer />
     </div>
   )
 }

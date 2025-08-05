@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { Search, Download, RefreshCw, TrendingUp, TrendingDown, Minus, Edit, Package, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { Footer } from '@/components/footer';
 
 interface Inventory {
   inventoryId: string;
@@ -688,344 +689,353 @@ export default function ImprovedInventoryPage() {
 
   if (!user) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600 mb-4">Please sign in to access the inventory management system.</p>
-          <a href="/login" className="text-blue-600 hover:text-blue-800 underline">
-            Go to Login
-          </a>
+      <div className="flex flex-col min-h-screen">
+        <div className="flex flex-1 justify-center items-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+            <p className="text-gray-600 mb-4">Please sign in to access the inventory management system.</p>
+            <a href="/login" className="text-blue-600 hover:text-blue-800 underline">
+              Go to Login
+            </a>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   if (!user.role || (user.role !== 'pharmacist' && user.role !== 'admin')) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
-          <p className="text-gray-600 mb-4">
-            Only pharmacists and administrators can access the inventory management system.
-          </p>
-          <a href="/" className="text-blue-600 hover:text-blue-800 underline">
-            Return to Home
-          </a>
+      <div className="flex flex-col min-h-screen">
+        <div className="flex flex-1 justify-center items-center">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+            <p className="text-gray-600 mb-4">
+              Only pharmacists and administrators can access the inventory management system.
+            </p>
+            <a href="/" className="text-blue-600 hover:text-blue-800 underline">
+              Return to Home
+            </a>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <main className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
-      <div className="flex justify-between items-start mb-8">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Inventory Management</h1>
-          <p className="text-gray-700 text-lg">Monitor stock levels and manage inventory across all branches</p>
-        </div>
-        <div className="flex gap-3">
-          {user?.role === 'admin' && (
+    <div className="flex flex-col min-h-screen">
+      <main className="p-6 bg-gray-50 flex-1">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Inventory Management</h1>
+            <p className="text-gray-700 text-lg">Monitor stock levels and manage inventory across all branches</p>
+          </div>
+          <div className="flex gap-3">
+            {user?.role === 'admin' && (
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium"
+              >
+                <Download className="w-4 h-4" />
+                Export Data
+              </button>
+            )}
             <button 
-              onClick={handleExport}
-              className="flex items-center gap-2 px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700 font-medium"
+              onClick={handleSyncInventory}
+              disabled={loading}
+              className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 font-medium"
             >
-              <Download className="w-4 h-4" />
-              Export Data
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Sync Inventory
             </button>
-          )}
-          <button 
-            onClick={handleSyncInventory}
-            disabled={loading}
-            className="flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 font-medium"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Sync Inventory
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          title="Total Products"
-          value={totalProducts}
-          icon={<div className="w-4 h-4 bg-blue-500 rounded"></div>}
-          subtitle="Active inventory items"
-          colorClass="bg-blue-100"
-        />
-        <StatsCard
-          title="Low Stock Alerts"
-          value={lowStockItems}
-          icon={<TrendingDown className="w-4 h-4 text-orange-500" />}
-          subtitle="Items below threshold"
-          colorClass="bg-orange-100"
-        />
-        <StatsCard
-          title="Out of Stock"
-          value={outOfStockItems}
-          icon={<Minus className="w-4 h-4 text-red-500" />}
-          subtitle="Items need restocking"
-          colorClass="bg-red-100"
-        />
-        <StatsCard
-          title="Total Value"
-          value={totalValue}
-          icon={<span className="text-green-600 font-bold text-sm">$</span>}
-          subtitle="Current inventory value"
-          colorClass="bg-green-100"
-        />
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
-        <div className="flex gap-4 flex-wrap items-center">
-          <div className="flex-1 min-w-80">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search products, categories, or branches..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900 text-sm"
-              />
-            </div>
           </div>
-          
-          <select
-            value={branchFilter}
-            onChange={(e) => setBranchFilter(e.target.value)}
-            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-44 text-gray-900 text-sm"
-          >
-            <option value="All Branches">All Branches</option>
-            {branches.map(branch => (
-              <option key={branch.branchId} value={branch.branchId.toString()}>
-                {branch.location}
-              </option>
-            ))}
-          </select>
-          
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-44 text-gray-900 text-sm"
-          >
-            {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-36 text-gray-900 text-sm"
-          >
-            <option value="All Status">All Status</option>
-            <option value="IN STOCK">In Stock</option>
-            <option value="LOW STOCK">Low Stock</option>
-            <option value="OUT OF STOCK">Out of Stock</option>
-          </select>
-
-          <select
-            value={itemsPerPage}
-            onChange={(e) => {
-              setItemsPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-20 text-gray-900 text-sm"
-          >
-            <option value={10}>10</option>
-            <option value={25}>25</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
         </div>
-      </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="flex justify-center items-center py-16">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-          <span className="ml-4 text-gray-700 text-lg">Loading inventory data...</span>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <StatsCard
+            title="Total Products"
+            value={totalProducts}
+            icon={<div className="w-4 h-4 bg-blue-500 rounded"></div>}
+            subtitle="Active inventory items"
+            colorClass="bg-blue-100"
+          />
+          <StatsCard
+            title="Low Stock Alerts"
+            value={lowStockItems}
+            icon={<TrendingDown className="w-4 h-4 text-orange-500" />}
+            subtitle="Items below threshold"
+            colorClass="bg-orange-100"
+          />
+          <StatsCard
+            title="Out of Stock"
+            value={outOfStockItems}
+            icon={<Minus className="w-4 h-4 text-red-500" />}
+            subtitle="Items need restocking"
+            colorClass="bg-red-100"
+          />
+          <StatsCard
+            title="Total Value"
+            value={totalValue}
+            icon={<span className="text-green-600 font-bold text-sm">$</span>}
+            subtitle="Current inventory value"
+            colorClass="bg-green-100"
+          />
         </div>
-      )}
 
-      {/* Error State */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
-          <div className="flex items-center">
-            <div className="text-red-600 font-medium text-lg">Error loading data</div>
-          </div>
-          <div className="text-red-600 text-sm mt-2">{error}</div>
-          <button 
-            onClick={fetchData} 
-            className="mt-4 px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Inventory Table */}
-      {!loading && !error && (
-        <div className="bg-white rounded-lg shadow-sm border">
-          {/* Table Header with Results Count */}
-          <div className="px-6 py-5 border-b bg-gray-50">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-gray-900">
-                Inventory Items ({filteredInventory.length} total)
-              </h3>
-              <div className="text-sm text-gray-600 font-medium">
-                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredInventory.length)} - {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of {filteredInventory.length} items
+        {/* Search and Filters */}
+        <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
+          <div className="flex gap-4 flex-wrap items-center">
+            <div className="flex-1 min-w-80">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search products, categories, or branches..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none text-gray-900 text-sm"
+                />
               </div>
             </div>
-          </div>
+            
+            <select
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-44 text-gray-900 text-sm"
+            >
+              <option value="All Branches">All Branches</option>
+              {branches.map(branch => (
+                <option key={branch.branchId} value={branch.branchId.toString()}>
+                  {branch.location}
+                </option>
+              ))}
+            </select>
+            
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-44 text-gray-900 text-sm"
+            >
+              {categories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-100 border-b-2 border-gray-200">
-                <tr>
-                  <th className="text-left px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/5">Product</th>
-                  <th className="text-left px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/8">Branch</th>
-                  <th className="text-left px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/10">Category</th>
-                  <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/12">Current Stock</th>
-                  <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/12">Threshold</th>
-                  <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/10">Status</th>
-                  <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/12">Trend</th>
-                  <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/10">Last Updated</th>
-                  <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/12">Cost</th>
-                  <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/8">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {currentItems.map(item => (
-                  <InventoryRow
-                    key={item.inventoryId}
-                    item={item}
-                    onRestock={handleRestock}
-                    onEdit={handleEdit}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-36 text-gray-900 text-sm"
+            >
+              <option value="All Status">All Status</option>
+              <option value="IN STOCK">In Stock</option>
+              <option value="LOW STOCK">Low Stock</option>
+              <option value="OUT OF STOCK">Out of Stock</option>
+            </select>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-6 py-5 border-t bg-gray-50">
-              <div className="flex items-center justify-between">
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none bg-white min-w-20 text-gray-900 text-sm"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="flex justify-center items-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+            <span className="ml-4 text-gray-700 text-lg">Loading inventory data...</span>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <div className="flex items-center">
+              <div className="text-red-600 font-medium text-lg">Error loading data</div>
+            </div>
+            <div className="text-red-600 text-sm mt-2">{error}</div>
+            <button 
+              onClick={fetchData} 
+              className="mt-4 px-4 py-2 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Inventory Table */}
+        {!loading && !error && (
+          <div className="bg-white rounded-lg shadow-sm border">
+            {/* Table Header with Results Count */}
+            <div className="px-6 py-5 border-b bg-gray-50">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Inventory Items ({filteredInventory.length} total)
+                </h3>
                 <div className="text-sm text-gray-600 font-medium">
-                  Page {currentPage} of {totalPages} ({filteredInventory.length} total results)
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                  >
-                    First
-                  </button>
-                  
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                  >
-                    Previous
-                  </button>
-
-                  {/* Page Numbers */}
-                  <div className="flex space-x-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNumber;
-                      if (totalPages <= 5) {
-                        pageNumber = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNumber = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNumber = totalPages - 4 + i;
-                      } else {
-                        pageNumber = currentPage - 2 + i;
-                      }
-
-                      return (
-                        <button
-                          key={pageNumber}
-                          onClick={() => setCurrentPage(pageNumber)}
-                          className={`px-4 py-2 text-sm border rounded-md font-medium transition-colors ${
-                            currentPage === pageNumber
-                              ? 'bg-orange-500 text-white border-orange-500'
-                              : 'border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          {pageNumber}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                  >
-                    Next
-                  </button>
-                  
-                  <button
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                  >
-                    Last
-                  </button>
+                  Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredInventory.length)} - {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of {filteredInventory.length} items
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
 
-      {/* Empty State */}
-      {!loading && !error && filteredInventory.length === 0 && (
-        <div className="text-center py-16">
-          <Package className="w-20 h-20 text-gray-400 mx-auto mb-6" />
-          <h3 className="text-xl font-medium text-gray-900 mb-3">No inventory items found</h3>
-          <p className="text-gray-600 text-lg">Try adjusting your search or filter criteria</p>
-        </div>
-      )}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100 border-b-2 border-gray-200">
+                  <tr>
+                    <th className="text-left px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/5">Product</th>
+                    <th className="text-left px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/8">Branch</th>
+                    <th className="text-left px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/10">Category</th>
+                    <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/12">Current Stock</th>
+                    <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/12">Threshold</th>
+                    <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/10">Status</th>
+                    <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/12">Trend</th>
+                    <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/10">Last Updated</th>
+                    <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/12">Cost</th>
+                    <th className="text-center px-6 py-5 text-sm font-bold text-gray-800 uppercase tracking-wider w-1/8">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {currentItems.map(item => (
+                    <InventoryRow
+                      key={item.inventoryId}
+                      item={item}
+                      onRestock={handleRestock}
+                      onEdit={handleEdit}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-      {/* Export Modal */}
-      {showExportModal && user?.role === 'admin' && (
-        <ExportModal
-          onClose={() => setShowExportModal(false)}
-          onExport={processExport}
-          categories={categories.filter((c): c is string => typeof c === 'string')}
-          inventoryList={inventoryList}
-          branches={branches}
-        />
-      )}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="px-6 py-5 border-t bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600 font-medium">
+                    Page {currentPage} of {totalPages} ({filteredInventory.length} total results)
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                    >
+                      First
+                    </button>
+                    
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                    >
+                      Previous
+                    </button>
 
-      {/* Restock Modal */}
-      {showModal && selectedItem && modalType === 'restock' && (
-        <RestockModal 
-          item={selectedItem} 
-          onClose={closeModal} 
-          onSubmit={handleRestockSubmit} 
-        />
-      )}
+                    {/* Page Numbers */}
+                    <div className="flex space-x-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNumber;
+                        if (totalPages <= 5) {
+                          pageNumber = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNumber = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNumber = totalPages - 4 + i;
+                        } else {
+                          pageNumber = currentPage - 2 + i;
+                        }
 
-      {/* Edit Modal */}
-      {showModal && selectedItem && modalType === 'edit' && (
-        <EditInventoryModal 
-          item={selectedItem} 
-          onClose={closeModal} 
-          onSubmit={handleEditSubmit} 
-        />
-      )}
-    </main>
+                        return (
+                          <button
+                            key={pageNumber}
+                            onClick={() => setCurrentPage(pageNumber)}
+                            className={`px-4 py-2 text-sm border rounded-md font-medium transition-colors ${
+                              currentPage === pageNumber
+                                ? 'bg-orange-500 text-white border-orange-500'
+                                : 'border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            {pageNumber}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                    >
+                      Next
+                    </button>
+                    
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                    >
+                      Last
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && filteredInventory.length === 0 && (
+          <div className="text-center py-16">
+            <Package className="w-20 h-20 text-gray-400 mx-auto mb-6" />
+            <h3 className="text-xl font-medium text-gray-900 mb-3">No inventory items found</h3>
+            <p className="text-gray-600 text-lg">Try adjusting your search or filter criteria</p>
+          </div>
+        )}
+
+        {/* Export Modal */}
+        {showExportModal && user?.role === 'admin' && (
+          <ExportModal
+            onClose={() => setShowExportModal(false)}
+            onExport={processExport}
+            categories={categories.filter((c): c is string => typeof c === 'string')}
+            inventoryList={inventoryList}
+            branches={branches}
+          />
+        )}
+
+        {/* Restock Modal */}
+        {showModal && selectedItem && modalType === 'restock' && (
+          <RestockModal 
+            item={selectedItem} 
+            onClose={closeModal} 
+            onSubmit={handleRestockSubmit} 
+          />
+        )}
+
+        {/* Edit Modal */}
+        {showModal && selectedItem && modalType === 'edit' && (
+          <EditInventoryModal 
+            item={selectedItem} 
+            onClose={closeModal} 
+            onSubmit={handleEditSubmit} 
+          />
+        )}
+      </main>
+      <Footer />
+    </div>
   );
 }
 

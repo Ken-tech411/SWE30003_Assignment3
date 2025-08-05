@@ -6,6 +6,7 @@ import { Package, MapPin, Clock, User } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/AuthContext"
+import { Footer } from "@/components/footer"
 
 export default function DeliveryDetailPage() {
   const { orderId } = useParams<{ orderId: string }>()
@@ -23,7 +24,6 @@ export default function DeliveryDetailPage() {
         return
       }
       try {
-        // Use the /api/orders endpoint, which returns { orders: [...] }
         const res = await fetch(`/api/orders?orderId=${encodeURIComponent(orderId)}`)
         if (!res.ok) {
           setOrder(null)
@@ -39,7 +39,6 @@ export default function DeliveryDetailPage() {
     fetchOrder()
   }, [orderId])
 
-  // Fetch prescriptionId for the signed-in customer
   useEffect(() => {
     async function fetchPrescriptionId() {
       if (!user?.linkedId) {
@@ -47,18 +46,15 @@ export default function DeliveryDetailPage() {
         return
       }
       try {
-        // Fetch prescriptions for this customer
         const res = await fetch(`/api/prescriptions?customerId=${user.linkedId}`)
         if (!res.ok) {
           setPrescriptionId(null)
           return
         }
         const data = await res.json()
-        // Find the prescription associated with this order (if possible), otherwise just get the latest
         if (order?.prescriptionId) {
           setPrescriptionId(order.prescriptionId)
         } else if (Array.isArray(data.data) && data.data.length > 0) {
-          // Get the latest prescription for this customer
           const sorted = data.data.sort((a: any, b: any) =>
             new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()
           )
@@ -70,7 +66,6 @@ export default function DeliveryDetailPage() {
         setPrescriptionId(null)
       }
     }
-    // Only fetch if user is customer and order is loaded
     if (user?.role === "customer" && order) {
       fetchPrescriptionId()
     }
@@ -95,6 +90,7 @@ export default function DeliveryDetailPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">Loading delivery information...</div>
+        <Footer />
       </div>
     )
   }
@@ -103,6 +99,7 @@ export default function DeliveryDetailPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center text-red-500">No delivery information found.</div>
+        <Footer />
       </div>
     )
   }
@@ -242,6 +239,7 @@ export default function DeliveryDetailPage() {
           </Card>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

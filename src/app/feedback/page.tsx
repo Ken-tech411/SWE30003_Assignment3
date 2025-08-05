@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare, Star, User, Clock, CheckCircle, Flag } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import NavbarAuthButton from "@/components/NavbarAuthButton";
+import { Footer } from "@/components/footer";
 
 const categories = [
   "Service",
@@ -259,6 +260,7 @@ export default function FeedbackPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">Loading feedback page...</div>
+        <Footer />
       </div>
     );
   }
@@ -270,6 +272,7 @@ export default function FeedbackPage() {
         <div className="flex justify-center items-center h-96 w-full">
           <div className="text-xl">Please sign in to access this page.</div>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -678,6 +681,7 @@ export default function FeedbackPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

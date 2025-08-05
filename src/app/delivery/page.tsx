@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,6 +8,7 @@ import { Package, Truck, MapPin, Clock, User, Search, CheckCircle } from "lucide
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { Footer } from "@/components/footer";
 
 interface Delivery {
   id: number;
@@ -92,7 +92,6 @@ export default function DeliveryPage() {
     try {
       const response = await fetch(`/api/orders?customerId=${user?.customerId}`);
       const data = await response.json();
-      // Filter to only show orders belonging to the logged-in user (defensive)
       setCustomerDeliveries(
         (data.orders || [])
           .filter((order: any) => order.customerId === user?.customerId)
@@ -195,7 +194,6 @@ export default function DeliveryPage() {
       return;
     }
     try {
-      // Pass both orderId and customerId for validation
       const res = await fetch(`/api/orders/track?orderId=${encodeURIComponent(trackingId)}&customerId=${user.customerId}`);
       if (!res.ok) {
         const data = await res.json();
@@ -207,7 +205,6 @@ export default function DeliveryPage() {
         setTrackError("Order not found. Please check your Order ID.");
         return;
       }
-      // Route to the [orderId] page for detailed info
       router.push(`/delivery/${encodeURIComponent(trackingId)}`);
     } catch (err) {
       setTrackError("Order not found. Please check your Order ID.");
@@ -231,6 +228,7 @@ export default function DeliveryPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">Loading deliveries...</div>
+        <Footer />
       </div>
     );
   }
@@ -241,11 +239,11 @@ export default function DeliveryPage() {
         <div className="flex justify-center items-center h-96 w-full">
           <div className="text-xl">Please sign in to access this page.</div>
         </div>
+        <Footer />
       </div>
     );
   }
 
-  // --- Account status bar ---
   return (
     <div>
       <div className="container mx-auto px-4 py-8">
@@ -608,6 +606,7 @@ export default function DeliveryPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

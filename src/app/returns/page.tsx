@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Clock, CheckCircle, AlertCircle, Package, RefreshCw } from "lucide-react"
 import { useAuth } from "@/context/AuthContext";
 import NavbarAuthButton from "@/components/NavbarAuthButton";
+import { Footer } from "@/components/footer"
 
 // 1. Update the ReturnItem interface to support customerInfo
 interface ReturnItem {
@@ -276,6 +277,7 @@ export default function ReturnsPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">Loading returns...</div>
+        <Footer />
       </div>
     )
   }
@@ -283,10 +285,10 @@ export default function ReturnsPage() {
   if (!user) {
     return (
       <div className="w-full flex justify-end p-4 border-b bg-white">
-        {/* <NavbarAuthButton /> removed */}
         <div className="flex justify-center items-center h-96 w-full">
           <div className="text-xl">Please sign in to access this page.</div>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -795,6 +797,7 @@ export default function ReturnsPage() {
         )}
         {/* --- End View Details Modal --- */}
       </div>
+      <Footer />
     </div>
   )
 }

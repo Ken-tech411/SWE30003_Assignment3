@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import NavbarAuthButton from "./NavbarAuthButton"
+import { useAuth } from '@/context/AuthContext'
 
 interface Product {
   productId: number;
@@ -27,6 +28,7 @@ export function Navbar() {
   const [loading, setLoading] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  const { user } = useAuth(); // Add this line to get the user
 
   // Load search history from localStorage on component mount
   useEffect(() => {
@@ -226,44 +228,45 @@ export function Navbar() {
   ]
 
   return (
-    <div className="relative z-[100]">
-      {/* Main Navigation */}
+    <div className="sticky top-0 z-[100] bg-white shadow-md">
+      {/* Main Navigation - Make sticky */}
       <nav className="bg-blue-500 shadow-sm border-b relative z-[101]">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-28 py-4">
-            {/* Logo */}
-            <div className="flex items-center space-x-6">
-              <Link href="/" className="flex items-center space-x-4">
+          <div className="flex items-center justify-between h-16 py-2">
+            {/* Logo - Smaller */}
+            <div className="flex items-center space-x-4">
+              <Link href="/" className="flex items-center space-x-3">
                 <div className="flex items-center">
                   <Image
                     src="/logo.png"
                     alt="Long Chau Pharmacy Logo"
-                    width={76}
-                    height={76}
+                    width={48}
+                    height={48}
                     className="rounded-lg"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-bold text-4xl text-white">Long Chau</span>
-                  <span className="text-lg text-white/90">Pharmacy Management</span>
+                  <span className="font-bold text-xl text-white">Long Chau</span>
+                  <span className="text-sm text-white/90">Pharmacy Management</span>
                 </div>
               </Link>
             </div>
 
-            {/* Search Bar with History */}
-            <div className="flex-1 max-w-6xl mx-24" ref={searchRef}>
+            {/* Search Bar - Smaller */}
+            <div className="flex-1 max-w-4xl mx-16" ref={searchRef}>
               <form onSubmit={handleSearch} className="relative">
                 <div className="relative bg-white rounded-full hover:shadow-lg transition-all duration-300 transform hover:scale-105">
-                  <Search className="absolute left-8 top-1/2 transform -translate-y-1/2 text-gray-400 w-10 h-10 z-10 transition-colors group-hover:text-blue-500" />
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 z-10 transition-colors group-hover:text-blue-500" />
                   <Input
                     placeholder="Search for medicines, health products..."
-                    className="pl-24 pr-12 h-20 w-full rounded-full border-0 focus:border-0 focus:ring-0 text-6xl bg-white shadow-none text-gray-700 placeholder-gray-400 outline-none focus:outline-none hover:bg-gray-50 transition-all duration-300 focus:bg-white focus:shadow-lg focus:scale-105"
+                    className="pl-12 pr-8 h-12 w-full rounded-full border-0 focus:border-0 focus:ring-0 text-base bg-white shadow-none text-gray-700 placeholder-gray-400 outline-none focus:outline-none hover:bg-gray-50 transition-all duration-300 focus:bg-white focus:shadow-lg focus:scale-105"
                     value={searchQuery}
                     onChange={handleSearchInputChange}
                     onKeyPress={handleKeyPress}
                     onFocus={handleSearchFocus}
                   />
                 </div>
+
                 {/* Search History Dropdown */}
                 {showSearchHistory && searchHistory.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-2xl border border-gray-200 z-[999999] max-h-96 overflow-y-auto">
@@ -281,6 +284,7 @@ export function Navbar() {
                           Delete All
                         </button>
                       </div>
+
                       {/* History Items */}
                       <div className="space-y-1">
                         {searchHistory.map((historyItem, index) => (
@@ -313,11 +317,11 @@ export function Navbar() {
               </form>
             </div>
 
-            {/* Right Actions */}
-            <div className="flex items-center space-x-12">
-              <Link href="/cart" className="flex items-center space-x-3 text-white hover:text-blue-100 whitespace-nowrap font-medium transition-all duration-300 px-6 py-4 rounded-lg hover:bg-white/20 hover:shadow-md transform hover:scale-105 group">
-                <ShoppingCart className="w-8 h-8 group-hover:text-blue-100 transition-colors" />
-                <span className="text-2xl font-medium">Cart</span>
+            {/* Right Actions - Smaller */}
+            <div className="flex items-center space-x-6">
+              <Link href="/cart" className="flex items-center space-x-2 text-white hover:text-blue-100 whitespace-nowrap font-medium transition-all duration-300 px-4 py-2 rounded-lg hover:bg-white/20 hover:shadow-md transform hover:scale-105 group">
+                <ShoppingCart className="w-5 h-5 group-hover:text-blue-100 transition-colors" />
+                <span className="text-base font-medium">Cart</span>
               </Link>
               {/* Use your auth button if logged in, else show Sign In */}
               <NavbarAuthButton />
@@ -326,23 +330,27 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* Services Navigation */}
+      {/* Services Navigation - Part of sticky container */}
       <div className="bg-white relative z-[50]">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-center space-x-12 py-4 overflow-x-auto">
-            <Link href="/prescription" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-5 py-3 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 text-base">
+          <div className="flex items-center justify-center space-x-8 py-2 overflow-x-auto">
+
+            <Link href="/prescription" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 text-sm">
               <span>Upload Prescription</span>
             </Link>
+
             {/* Products Dropdown */}
             <div
               className="relative z-[60]"
               onMouseEnter={handleMouseEnterDropdown}
               onMouseLeave={handleMouseLeaveDropdown}
             >
-              <button className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-5 py-3 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 text-base">
+              <button className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 text-sm">
                 <span>Products</span>
-                <ChevronDown className="w-5 h-5" />
+                <ChevronDown className="w-4 h-4" />
               </button>
+
+              {/* Dropdown Menu - Adjust positioning for sticky navbar */}
               {showProductDropdown && (
                 <div
                   className="fixed bg-white rounded-lg shadow-2xl border w-[800px]"
@@ -445,19 +453,23 @@ export function Navbar() {
                 </div>
               )}
             </div>
-            {/* Other Navigation Links */}
-            <Link href="/delivery" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-5 py-3 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 text-base">
+
+            {/* Other Navigation Links - Smaller */}
+            <Link href="/delivery" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 text-sm">
               <span>Track Delivery</span>
             </Link>
-            <Link href="/returns" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-5 py-3 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 group text-base">
+            <Link href="/returns" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 group text-sm">
               <span>Returns & Exchanges</span>
             </Link>
-            <Link href="/feedback" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-5 py-3 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 group text-base">
+            <Link href="/feedback" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 group text-sm">
               <span>Feedback</span>
             </Link>
-            <Link href="/inventory" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-5 py-3 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 text-base">
-              <span>Inventory</span>
-            </Link>
+            {/* Inventory - Only show for pharmacists and admins */}
+            {user && (user.role === "pharmacist" || user.role === "admin") && (
+              <Link href="/inventory" className="flex items-center space-x-2 text-gray-800 hover:text-blue-600 whitespace-nowrap font-medium transition-all duration-300 px-3 py-2 rounded-lg hover:bg-blue-50 hover:shadow-md transform hover:scale-105 text-sm">
+                <span>Inventory</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>

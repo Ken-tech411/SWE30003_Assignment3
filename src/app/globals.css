@@ -205,6 +205,17 @@
   }
 }
 
+@keyframes slide-in {
+  0% {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .animate-fade-in-up {
   animation: fade-in-up 1s ease-out forwards;
   opacity: 0;
@@ -216,6 +227,10 @@
 
 .animate-wave {
   animation: wave 8s ease-in-out infinite;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.6s ease-out;
 }
 
 /* Ensure hero section stays below */
@@ -249,6 +264,44 @@
   position: fixed !important;
 }
 
+/* Sticky navbar styles */
+.sticky-navbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  background: white !important;
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 2px 2px -1px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Ensure smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Adjust body to account for sticky navbar */
+body {
+  scroll-padding-top: 120px; /* Adjust based on navbar height */
+}
+
+/* Prevent content from jumping when navbar becomes sticky */
+.navbar-spacer {
+  height: 0;
+  transition: height 0.3s ease;
+}
+
+/* Dropdown positioning for sticky navbar */
+.navbar-dropdown {
+  position: absolute !important;
+  z-index: 999999 !important;
+}
+
+/* Override any competing z-index values */
+main {
+  position: relative;
+  z-index: 1;
+}
+
 .dropdown-enter {
   opacity: 0;
   transform: translateY(-10px);
@@ -271,35 +324,6 @@
   transition: all 200ms ease-in;
 }
 
-/* Promo Section Animations */
-@keyframes slide-in {
-  0% {
-    opacity: 0;
-    transform: translateX(100px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.animate-slide-in {
-  animation: slide-in 0.6s ease-out;
-}
-
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
 /* Hover effects for promo cards */
 .promo-card {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -308,4 +332,17 @@
 .promo-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Hide any unwanted zeros or pseudo-element content */
+.hide-zero::before,
+.hide-zero::after,
+.product-card *::before,
+.product-card *::after {
+  content: none !important;
+}
+
+/* Fix any counter issues that might show 0 */
+* {
+  counter-reset: none;
 }

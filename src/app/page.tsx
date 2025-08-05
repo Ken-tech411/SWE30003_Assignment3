@@ -2,69 +2,39 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AnimatedSection } from "@/components/animated-section"
-import {
-  ShoppingCart,
-  Package,
-  RefreshCw,
-  CreditCard,
-  Truck,
-  Upload,
-  Clock,
-  Shield,
-  MapPin,
-  Phone,
-  Mail,
-} from "lucide-react"
+import {ShoppingCart, Package, RefreshCw, CreditCard, Truck, Upload, Clock, Shield } from "lucide-react"
 import Image from "next/image"
 import FeaturedProducts from "@/components/featured-products"
-// Use your fixed BestSellingProducts import/component here:
 import BestSellingProducts from "@/components/best-selling-products"
 import PromoSection from "@/components/promo-section"
+import { Footer } from "@/components/footer"
 
 export default function HomePage() {
   return (
     <div className="min-h-screen">
       {/* Hero Section - ENSURE LOW Z-INDEX */}
-      <div
-        className="relative bg-gradient-to-br from-blue-500 via-blue-400 to-blue-600 text-white overflow-hidden"
-        style={{ zIndex: 1 }}
-      >
+      <div className="relative bg-gradient-to-br from-blue-500 via-blue-400 to-blue-600 text-white overflow-hidden" style={{ zIndex: 1 }}>
         {/* Animated Background Elements */}
         <div className="absolute inset-0">
           {/* Large White Wave Streaks - Similar to Long Chau */}
           <div className="absolute top-0 right-0 w-96 h-96 opacity-10">
             <svg viewBox="0 0 400 400" className="w-full h-full">
-              <path
-                d="M50,200 Q150,100 250,200 T450,200"
-                stroke="white"
-                strokeWidth="40"
-                fill="none"
-                opacity="0.3"
-              />
-              <path
-                d="M0,250 Q100,150 200,250 T400,250"
-                stroke="white"
-                strokeWidth="30"
-                fill="none"
-                opacity="0.2"
-              />
+              <path d="M50,200 Q150,100 250,200 T450,200" stroke="white" strokeWidth="40" fill="none" opacity="0.3" />
+              <path d="M0,250 Q100,150 200,250 T400,250" stroke="white" strokeWidth="30" fill="none" opacity="0.2" />
             </svg>
           </div>
+
           {/* Left side wave streak */}
           <div className="absolute bottom-0 left-0 w-80 h-80 opacity-15">
             <svg viewBox="0 0 300 300" className="w-full h-full">
-              <path
-                d="M-50,150 Q50,50 150,150 T350,150"
-                stroke="white"
-                strokeWidth="35"
-                fill="none"
-                opacity="0.4"
-              />
+              <path d="M-50,150 Q50,50 150,150 T350,150" stroke="white" strokeWidth="35" fill="none" opacity="0.4" />
             </svg>
           </div>
+
           {/* Curved background elements */}
           <div className="absolute top-1/4 right-1/6 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
           <div className="absolute bottom-1/4 left-1/6 w-48 h-48 bg-blue-300/10 rounded-full blur-2xl"></div>
+
           {/* Floating Pills Animation */}
           <div
             className="absolute top-20 left-10 w-8 h-8 bg-white/10 rounded-full animate-bounce"
@@ -86,11 +56,9 @@ export default function HomePage() {
             className="absolute bottom-40 right-1/3 w-7 h-7 bg-orange-400/10 rounded-full animate-bounce"
             style={{ animationDelay: "1.5s", animationDuration: "4.5s" }}
           ></div>
+
           {/* Medical Cross Icons */}
-          <div
-            className="absolute top-1/3 left-1/6 text-white/10 animate-pulse"
-            style={{ animationDelay: "2s" }}
-          >
+          <div className="absolute top-1/3 left-1/6 text-white/10 animate-pulse" style={{ animationDelay: "2s" }}>
             <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
               <path d="M19 8h-2V6a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H5a1 1 0 0 0 0 2h2v4H5a1 1 0 0 0 0 2h2v2a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2h2a1 1 0 0 0 0-2h-2v-4h2a1 1 0 0 0 0-2zM9 6h6v12H9V6z" />
             </svg>
@@ -104,6 +72,7 @@ export default function HomePage() {
             </svg>
           </div>
         </div>
+
         <div className="container mx-auto px-4 py-20 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center min-h-[600px]">
             {/* Left Content */}
@@ -112,28 +81,20 @@ export default function HomePage() {
                 <h1 className="text-5xl lg:text-7xl font-bold mb-6 leading-tight animate-fade-in-up">
                   LONG CHAU
                   <br />
-                  <span
-                    className="text-blue-100 animate-fade-in-up"
-                    style={{ animationDelay: "0.3s" }}
-                  >
+                  <span className="text-blue-100 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
                     PHARMACY
                   </span>
                   <br />
-                  <span
-                    className="text-white animate-fade-in-up"
-                    style={{ animationDelay: "0.6s" }}
-                  >
+                  <span className="text-white animate-fade-in-up" style={{ animationDelay: "0.6s" }}>
                     MANAGEMENT SYSTEM
                   </span>
                 </h1>
-                <p
-                  className="text-2xl mb-8 text-blue-100 animate-fade-in-up"
-                  style={{ animationDelay: "0.9s" }}
-                >
+                <p className="text-2xl mb-8 text-blue-100 animate-fade-in-up" style={{ animationDelay: "0.9s" }}>
                   FOR A HEALTHY LIFE
                 </p>
               </div>
             </div>
+
             {/* Right Content - Enhanced Pharmacy Illustration */}
             <div className="relative flex justify-center lg:justify-end">
               <div className="relative animate-float">
@@ -147,6 +108,7 @@ export default function HomePage() {
                     <h3 className="text-blue-600 font-bold text-2xl mb-2">Long Chau</h3>
                     <p className="text-gray-600 text-base">Healthcare Solutions</p>
                   </div>
+
                   {/* Enhanced Pharmacy Shelves - Larger Horizontal Layout */}
                   <div className="space-y-4 mb-8">
                     <div className="flex justify-center gap-4">
@@ -178,6 +140,7 @@ export default function HomePage() {
                       </div>
                     </div>
                   </div>
+
                   {/* Enhanced Stats - Larger Horizontal Layout */}
                   <div className="flex justify-center gap-8">
                     <div className="bg-blue-50 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow text-center min-w-[100px]">
@@ -194,12 +157,14 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
+
                 {/* Enhanced Floating Elements Around Pharmacy */}
                 <div className="absolute -top-8 -right-8 w-24 h-24 bg-orange-400/20 rounded-full flex items-center justify-center animate-pulse backdrop-blur-sm">
                   <svg className="w-12 h-12 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                   </svg>
                 </div>
+
                 <div
                   className="absolute -bottom-8 -left-8 w-20 h-20 bg-green-400/20 rounded-full flex items-center justify-center animate-pulse backdrop-blur-sm"
                   style={{ animationDelay: "1s" }}
@@ -208,6 +173,7 @@ export default function HomePage() {
                     <path d="M19 8h-2V6a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H5a1 1 0 0 0 0 2h2v4H5a1 1 0 0 0 0 2h2v2a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-2h2a1 1 0 0 0 0-2h-2v-4h2a1 1 0 0 0 0-2zM9 6h6v12H9V6z" />
                   </svg>
                 </div>
+
                 <div
                   className="absolute top-1/2 -right-12 w-16 h-16 bg-blue-400/20 rounded-full animate-bounce backdrop-blur-sm"
                   style={{ animationDelay: "0.5s" }}
@@ -216,6 +182,7 @@ export default function HomePage() {
                     <div className="w-8 h-8 bg-white rounded-full"></div>
                   </div>
                 </div>
+
                 {/* Additional floating medical icons */}
                 <div
                   className="absolute top-0 left-0 w-16 h-16 bg-white/10 rounded-full flex items-center justify-center animate-pulse"
@@ -225,18 +192,21 @@ export default function HomePage() {
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                   </svg>
                 </div>
+
                 <div
                   className="absolute bottom-0 right-0 w-14 h-14 bg-yellow-400/30 rounded-full animate-bounce"
                   style={{ animationDelay: "1.8s" }}
                 >
                   <div className="w-full h-full bg-yellow-500 rounded-full"></div>
                 </div>
+
                 <div
                   className="absolute top-1/2 -left-10 w-12 h-12 bg-purple-400/20 rounded-full animate-bounce"
                   style={{ animationDelay: "1.2s" }}
                 >
                   <div className="w-full h-full bg-purple-500 rounded-full"></div>
                 </div>
+
                 <div
                   className="absolute bottom-1/4 right-1/4 w-10 h-10 bg-pink-400/20 rounded-full animate-pulse"
                   style={{ animationDelay: "2.5s" }}
@@ -248,8 +218,10 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
       {/* Promo Section */}
       <PromoSection />
+
       {/* About Section */}
       <AnimatedSection className="bg-white py-16">
         <div className="container mx-auto px-4">
@@ -292,6 +264,7 @@ export default function HomePage() {
           </div>
         </div>
       </AnimatedSection>
+
       {/* Why Choose Us Section */}
       <AnimatedSection className="bg-gradient-to-r from-blue-50 to-blue-50 py-16">
         <div className="container mx-auto px-4">
@@ -339,10 +312,13 @@ export default function HomePage() {
           </div>
         </div>
       </AnimatedSection>
+
       {/* Featured Products Section */}
       <FeaturedProducts />
+
       {/* Best Selling Products Section */}
       <BestSellingProducts />
+
       {/* Services Section */}
       <AnimatedSection className="bg-white py-16">
         <div className="container mx-auto px-4">
@@ -355,6 +331,7 @@ export default function HomePage() {
               </p>
             </div>
           </AnimatedSection>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatedSection delay={400}>
               <Card className="border-2 border-blue-100 hover:border-blue-300 hover:shadow-lg transition-all duration-300 group h-full">
@@ -376,6 +353,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             </AnimatedSection>
+
             <AnimatedSection delay={500}>
               <Card className="border-2 border-orange-100 hover:border-orange-300 hover:shadow-lg transition-all duration-300 group h-full">
                 <CardHeader className="pb-4">
@@ -396,6 +374,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             </AnimatedSection>
+
             <AnimatedSection delay={600}>
               <Card className="border-2 border-green-100 hover:border-green-300 hover:shadow-lg transition-all duration-300 group h-full">
                 <CardHeader className="pb-4">
@@ -416,6 +395,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             </AnimatedSection>
+
             <AnimatedSection delay={700}>
               <Card className="border-2 border-blue-100 hover:border-blue-300 hover:shadow-lg transition-all duration-300 group h-full">
                 <CardHeader className="pb-4">
@@ -436,6 +416,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             </AnimatedSection>
+
             <AnimatedSection delay={800}>
               <Card className="border-2 border-orange-100 hover:border-orange-300 hover:shadow-lg transition-all duration-300 group h-full">
                 <CardHeader className="pb-4">
@@ -456,6 +437,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             </AnimatedSection>
+
             <AnimatedSection delay={900}>
               <Card className="border-2 border-green-100 hover:border-green-300 hover:shadow-lg transition-all duration-300 group h-full">
                 <CardHeader className="pb-4">
@@ -479,155 +461,9 @@ export default function HomePage() {
           </div>
         </div>
       </AnimatedSection>
-      <AnimatedSection>
-        <footer className="bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 text-white">
-          <div className="container mx-auto px-4 py-16">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {/* Company Info */}
-              <AnimatedSection delay={200}>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <Image
-                      src="/logo.png"
-                      alt="Long Chau Logo"
-                      width={80}
-                      height={32}
-                      className="object-contain"
-                    />
-                    <div>
-                      <h3 className="text-xl font-bold">Long Chau</h3>
-                      <p className="text-blue-100 text-sm">Pharmacy Management</p>
-                    </div>
-                  </div>
-                  <p className="text-blue-100 leading-relaxed">
-                    Your trusted pharmacy partner providing comprehensive healthcare solutions with professional service
-                    and advanced technology.
-                  </p>
-                  
-                </div>
-              </AnimatedSection>
-              {/* Quick Links */}
-              <AnimatedSection delay={400}>
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold">Quick Links</h4>
-                  <ul className="space-y-2">
-                    <li>
-                      <Link
-                        href="/prescription"
-                        className="text-blue-100 hover:text-white transition-colors flex items-center"
-                      >
-                        Upload Prescription
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/cart" className="text-blue-100 hover:text-white transition-colors">
-                        Shopping Cart
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/delivery" className="text-blue-100 hover:text-white transition-colors">
-                        Track Delivery
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/returns" className="text-blue-100 hover:text-white transition-colors">
-                        Returns & Exchanges
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/inventory" className="text-blue-100 hover:text-white transition-colors">
-                        Inventory
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-              </AnimatedSection>
-              {/* Services */}
-              <AnimatedSection delay={600}>
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold">Our Services</h4>
-                  <ul className="space-y-2">
-                    <li>
-                      <div className="text-blue-100 hover:text-white transition-colors">
-                        Pharmacy Consultation
-                      </div>
-                    </li>
-                    <li>
-                      <div className="text-blue-100 hover:text-white transition-colors">
-                        Home Delivery
-                      </div>
-                    </li>
-                    <li>
-                      <div className="text-blue-100 hover:text-white transition-colors">
-                        Health Check-up
-                      </div>
-                    </li>
-                    <li>
-                      <div className="text-blue-100 hover:text-white transition-colors">
-                        Medication Management
-                      </div>
-                    </li>
-                    <li>
-                      <div className="text-blue-100 hover:text-white transition-colors">
-                        Emergency Services
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-              </AnimatedSection>
-              {/* Contact Info */}
-              <AnimatedSection delay={800}>
-                <div className="space-y-4">
-                  <h4 className="text-lg font-semibold">Contact Us</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-start space-x-3">
-                      <MapPin className="w-5 h-5 text-blue-200 mt-1 flex-shrink-0" />
-                      <div>
-                        <p className="text-blue-100">A35 Bach Dang Street</p>
-                        <p className="text-blue-100">HCM City, Vietnam</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <Phone className="w-5 h-5 text-blue-200 flex-shrink-0" />
-                      <p className="text-blue-100">+84 343 580 927</p>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <Mail className="w-5 h-5 text-blue-200 flex-shrink-0" />
-                      <p className="text-blue-100">info@longchau.com</p>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <Clock className="w-5 h-5 text-blue-200 mt-1 flex-shrink-0" />
-                      <div>
-                        <p className="text-blue-100">Mon - Fri: 8:00 AM - 10:00 PM</p>
-                        <p className="text-blue-100">Sat - Sun: 9:00 AM - 9:00 PM</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </AnimatedSection>
-            </div>
-            {/* Bottom Section */}
-            <AnimatedSection delay={1000}>
-              <div className="border-t border-blue-400 mt-12 pt-8">
-                <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-                  <div className="text-blue-100 text-sm">© 2025 Long Chau. All rights reserved.</div>
-                  <div className="flex space-x-6 text-sm">
-                    <Link href="/privacy" className="text-blue-100 hover:text-white transition-colors">
-                      Privacy Policy
-                    </Link>
-                    <Link href="/terms" className="text-blue-100 hover:text-white transition-colors">
-                      Terms of Service
-                    </Link>
-                    <Link href="/cookies" className="text-blue-100 hover:text-white transition-colors">
-                      Cookie Policy
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </AnimatedSection>
-          </div>
-        </footer>
-      </AnimatedSection>
+
+      {/* Footer Section */}
+      <Footer />
     </div>
   )
 }
