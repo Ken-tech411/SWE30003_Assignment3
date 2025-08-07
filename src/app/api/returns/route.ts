@@ -12,11 +12,11 @@ export async function GET(request: NextRequest) {
     const orderId = searchParams.get('orderId');
     const customerId = searchParams.get('customerId');
 
-    let where: string[] = [];
-    let params: any[] = [];
+    const where: string[] = [];
+    const params: (string | number)[] = [];
 
     if (statuses.length) {
-      const statusConds = statuses.map(status => "r.status = ?");
+      const statusConds = statuses.map(() => "r.status = ?");
       where.push(`(${statusConds.join(" OR ")})`);
       params.push(...statuses);
     }
@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
        JOIN \`Order\` o ON r.orderId = o.orderId
        ${whereClause}`,
       params
-    ) as any[];
-    const total = totalRows[0]?.total || 0;
+    ) as unknown as Array<{ total: number }>;
+    const total = Array.isArray(totalRows) ? totalRows[0]?.total || 0 : 0;
 
     // Get paginated filtered data
     const [returns] = await pool.query(
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       ORDER BY r.submittedDate DESC
       LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
-    ) as any[];
+    ) as unknown as Array<any>;
 
     // --- Get stats for the whole Return table (not paginated/filtered) ---
     const [statsRows] = await pool.query(
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
         SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
         SUM(refundAmount) as totalRefunds
       FROM \`Return\``
-    ) as any[];
-    const stats = statsRows[0] || { pending: 0, approved: 0, rejected: 0, totalRefunds: 0 };
+    ) as unknown as Array<{ pending: number; approved: number; rejected: number; totalRefunds: number }>;
+    const stats = Array.isArray(statsRows) ? statsRows[0] || { pending: 0, approved: 0, rejected: 0, totalRefunds: 0 } : { pending: 0, approved: 0, rejected: 0, totalRefunds: 0 };
 
     return NextResponse.json({ returns, total, stats });
   } catch (error) {
@@ -84,15 +84,16 @@ export async function POST(request: NextRequest) {
     const [orderItemResult] = await pool.query(
       'SELECT unitPrice FROM OrderItem WHERE orderId = ? AND productId = ?',
       [orderId, productId]
-    ) as any[];
+    ) as unknown as Array<{ unitPrice: number }>;
     const orderItem = Array.isArray(orderItemResult) ? orderItemResult[0] : undefined;
     const refundAmount = orderItem && orderItem.unitPrice ? Number(orderItem.unitPrice) : 0;
 
-    const [result]: any = await pool.query(
+    const resultArr = await pool.query(
       `INSERT INTO \`Return\` (orderId, productId, reason, description, status, refundAmount, submittedDate)
        VALUES (?, ?, ?, ?, 'pending', ?, NOW())`,
       [orderId, productId, reason, description, refundAmount]
     );
+    const result = Array.isArray(resultArr) ? resultArr[0] as { insertId: number } : { insertId: 0 };
 
     return NextResponse.json({ success: true, returnId: result.insertId });
   } catch (error) {
@@ -111,7 +112,7 @@ export async function PUT(request: NextRequest) {
 
     // Optionally, update processedDate if status is 'completed'
     let sql = 'UPDATE `Return` SET status = ?';
-    const params: any[] = [status];
+    const params: (string | number)[] = [status];
 
     if (status === 'completed') {
       sql += ', processedDate = NOW()';

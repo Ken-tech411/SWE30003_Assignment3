@@ -17,7 +17,12 @@ export async function GET(request: Request) {
       request.headers.get('authorization') ||
       cookieStore.get('sessionToken')?.value;
 
-    let user: any = null;
+    let user: {
+      userId: number;
+      username: string;
+      role: string;
+      linkedId: number | null;
+    } | null = null;
     if (sessionToken) {
       const [sessions] = await pool.query(
         `SELECT u.userId, u.username, u.role, u.linkedId
@@ -25,8 +30,13 @@ export async function GET(request: Request) {
          JOIN UserAccount u ON s.userId = u.userId
          WHERE s.sessionToken = ? AND s.isActive = 1`,
         [sessionToken]
-      ) as any[];
-      user = sessions[0] || null;
+      ) as unknown as Array<{
+        userId: number;
+        username: string;
+        role: string;
+        linkedId: number | null;
+      }>;
+      user = Array.isArray(sessions) ? sessions[0] || null : null;
     }
 
     const statuses = searchParams.getAll('status'); // e.g. ["approved", "pending"]
@@ -35,8 +45,8 @@ export async function GET(request: Request) {
     const customerId = searchParams.get('customerId');
 
     // Build WHERE clause
-    let where: string[] = [];
-    let params: any[] = [];
+    const where: string[] = [];
+    const params: (string | number | null)[] = [];
 
     if (statuses.length) {
       const statusConds = statuses.map(status => {
@@ -77,8 +87,8 @@ export async function GET(request: Request) {
        LEFT JOIN Customer c ON o.customerId = c.customerId
        ${whereClause}`,
       params
-    ) as any[];
-    const total = totalRows[0]?.total || 0;
+    ) as unknown as Array<{ total: number }>;
+    const total = Array.isArray(totalRows) ? totalRows[0]?.total || 0 : 0;
 
     // Get paginated filtered data
     const [rows] = await pool.query(
@@ -94,7 +104,14 @@ export async function GET(request: Request) {
       ORDER BY p.uploadDate DESC
       LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
-    ) as any[];
+    ) as unknown as Array<{
+      prescriptionId: number;
+      imageFile: string;
+      uploadDate: string;
+      approved: number | null;
+      pharmacistId: number | null;
+      customerId: number;
+    }>;
 
     // Get status counts (for all data, not just filtered)
     const [statusCountsRows] = await pool.query(
@@ -103,8 +120,8 @@ export async function GET(request: Request) {
         SUM(CASE WHEN p.approved = 1 THEN 1 ELSE 0 END) as approved,
         SUM(CASE WHEN p.approved = 0 THEN 1 ELSE 0 END) as rejected
       FROM Prescription p`
-    ) as any[];
-    const statusCounts = statusCountsRows[0] || { pending: 0, approved: 0, rejected: 0 };
+    ) as unknown as Array<{ pending: number; approved: number; rejected: number }>;
+    const statusCounts = Array.isArray(statusCountsRows) ? statusCountsRows[0] || { pending: 0, approved: 0, rejected: 0 } : { pending: 0, approved: 0, rejected: 0 };
 
     return NextResponse.json({ data: rows, total, statusCounts });
   } catch (error) {
@@ -130,11 +147,12 @@ export async function POST(request: Request) {
     }
 
     // Insert with customerId
-    const [result]: any = await pool.query(
+    const resultArr = await pool.query(
       `INSERT INTO Prescription (imageFile, uploadDate, approved, pharmacistId, customerId) 
        VALUES (?, NOW(), NULL, NULL, ?)`,
       [imageFileName, customerId]
     );
+    const result = Array.isArray(resultArr) ? resultArr[0] as { insertId: number } : { insertId: 0 };
 
     return NextResponse.json(
       { success: true, prescriptionId: result.insertId },

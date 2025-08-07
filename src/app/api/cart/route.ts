@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       price: row.price,
       quantity: row.quantity,
       description: row.description,
-      requiresPrescription: Boolean(row.requiresPrescription), // <-- fix here
+      requiresPrescription: Boolean(row.requiresPrescription), 
     }))
 
     return NextResponse.json({ cartItems })
