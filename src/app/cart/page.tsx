@@ -175,6 +175,7 @@ export default function CartPage() {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-semibold">{item.name}</h3>
+                        {/* Only show text if prescription is required */}
                         {item.requiresPrescription && (
                           <span className="text-sm text-red-600 font-medium">Prescription Required</span>
                         )}

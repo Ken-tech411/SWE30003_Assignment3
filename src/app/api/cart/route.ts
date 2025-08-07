@@ -64,7 +64,18 @@ export async function GET(request: NextRequest) {
       throw new Error('Unexpected query result format')
     }
 
-    return NextResponse.json({ cartItems: rows })
+    const cartItems = rows.map((row) => ({
+      cartId: row.cartId,
+      customerId: row.customerId,
+      productId: row.productId,
+      name: row.name,
+      price: row.price,
+      quantity: row.quantity,
+      description: row.description,
+      requiresPrescription: Boolean(row.requiresPrescription), // <-- fix here
+    }))
+
+    return NextResponse.json({ cartItems })
   } catch (error: unknown) {
     console.error('Error fetching cart items:', error)
     return NextResponse.json(

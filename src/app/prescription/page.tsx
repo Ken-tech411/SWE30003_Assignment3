@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { UploadCloud, CheckCircle, XCircle, Clock } from "lucide-react"
+import { UploadCloud, CheckCircle, XCircle, Clock, User, Search } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
-import { Footer } from "@/components/footer"
+import NavbarAuthButton from "@/components/NavbarAuthButton"
 
 interface Prescription {
   prescriptionId: number
@@ -21,14 +21,6 @@ interface Prescription {
   orderId?: number
   patientName?: string
   patientPhoneNumber?: string
-  customerInfo?: {
-    name?: string
-    email?: string
-    address?: string
-    phoneNumber?: string
-    dateOfBirth?: string
-    gender?: string
-  }
 }
 
 export default function UploadPrescriptionPage() {
@@ -41,9 +33,10 @@ export default function UploadPrescriptionPage() {
   }, [user]);
 
   const [formData, setFormData] = useState({
+    patientName: "",
+    phoneNumber: "",
     imageFile: null as File | null
   })
-  const [formError, setFormError] = useState<string | null>(null);
 
   const [customerPrescriptions, setCustomerPrescriptions] = useState<Prescription[]>([])
   const [pharmacistPrescriptions, setPharmacistPrescriptions] = useState<Prescription[]>([])
@@ -58,14 +51,6 @@ export default function UploadPrescriptionPage() {
   const [customerIdFilter, setCustomerIdFilter] = useState("");
   const [debouncedPrescriptionId, setDebouncedPrescriptionId] = useState("");
   const [debouncedCustomerId, setDebouncedCustomerId] = useState("");
-  const [customerInfo, setCustomerInfo] = useState<{
-    name?: string;
-    email?: string;
-    address?: string;
-    phoneNumber?: string;
-    dateOfBirth?: string;
-    gender?: string;
-  } | null>(null);
 
   // Debounce filters for backend
   useEffect(() => {
@@ -75,22 +60,6 @@ export default function UploadPrescriptionPage() {
     }, 400);
     return () => clearTimeout(handler);
   }, [prescriptionIdFilter, customerIdFilter]);
-
-  // Fetch customer info for the signed-in account (for display)
-  useEffect(() => {
-    async function fetchCustomerInfo() {
-      if (user?.linkedId) {
-        const res = await fetch(`/api/customers/${user.linkedId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setCustomerInfo(data.customer || null);
-        }
-      }
-    }
-    if (user?.role === "customer" && user.linkedId) {
-      fetchCustomerInfo();
-    }
-  }, [user]);
 
   // Fetch prescriptions for staff view (backend-driven pagination)
   const fetchPrescriptions = async () => {
@@ -131,32 +100,19 @@ export default function UploadPrescriptionPage() {
 
   // Fetch customer prescriptions (for customer view)
   useEffect(() => {
-    async function fetchCustomerPrescriptions() {
-      if (user && user.role === "customer" && activeTab === "customer" && user.linkedId) {
-        setIsLoading(true);
-        const res = await fetch(`/api/prescriptions?customerId=${user.linkedId}&page=${page}&pageSize=${pageSize}`);
-        const data = await res.json();
-        // For each prescription, fetch customer info for display
-        const enriched = await Promise.all(
-          (Array.isArray(data.data) ? data.data : []).map(async (prescription: Prescription) => {
-            if (prescription.customerId) {
-              const res = await fetch(`/api/customers/${prescription.customerId}`);
-              if (res.ok) {
-                const customerData = await res.json();
-                return { ...prescription, customerInfo: customerData.customer };
-              }
-            }
-            return prescription;
-          })
-        );
-        setCustomerPrescriptions(enriched);
-        setTotal(data.total || (Array.isArray(data.data) ? data.data.length : 0));
-        setIsLoading(false);
-      }
+    if (user && user.role === "customer" && activeTab === "customer" && user.linkedId) {
+      setIsLoading(true);
+      fetch(`/api/prescriptions?customerId=${user.linkedId}&page=${page}&pageSize=${pageSize}`)
+        .then(res => res.json())
+        .then(data => {
+          setCustomerPrescriptions(Array.isArray(data.data) ? data.data : []);
+          setTotal(data.total || (Array.isArray(data.data) ? data.data.length : 0));
+          setIsLoading(false);
+        });
     }
-    fetchCustomerPrescriptions();
   }, [user, activeTab, page, pageSize]);
 
+  // UI helpers
   const getStatus = (approved: boolean | null) => {
     if (approved === null || approved === undefined) return "pending"
     return approved ? "approved" : "rejected"
@@ -188,15 +144,10 @@ export default function UploadPrescriptionPage() {
     }
   }
 
-  // --- CUSTOMER UPLOAD LOGIC: include customerId and validation ---
+  // --- CUSTOMER UPLOAD LOGIC: include customerId ---
   const handleUpload = async () => {
-    setFormError(null);
     if (!user?.linkedId) {
-      setFormError("You must be signed in as a customer to upload a prescription.");
-      return;
-    }
-    if (!formData.imageFile) {
-      setFormError("Prescription image is required.");
+      alert("You must be signed in as a customer to upload a prescription.");
       return;
     }
     try {
@@ -212,19 +163,22 @@ export default function UploadPrescriptionPage() {
       });
 
       if (response.ok) {
-        setFormError(null);
         alert("Prescription submitted for review!");
         setFormData({
+          patientName: "",
+          phoneNumber: "",
           imageFile: null
         })
         // Refresh customer prescriptions
-        const res = await fetch(`/api/prescriptions?customerId=${user.linkedId}&page=${page}&pageSize=${pageSize}`);
-        const data = await res.json();
-        setCustomerPrescriptions(Array.isArray(data.data) ? data.data : []);
-        setTotal(data.total || (Array.isArray(data.data) ? data.data.length : 0));
+        fetch(`/api/prescriptions?page=${page}&pageSize=${pageSize}`)
+          .then(res => res.json())
+          .then(data => {
+            setCustomerPrescriptions(Array.isArray(data.data) ? data.data : []);
+            setTotal(data.total || (Array.isArray(data.data) ? data.data.length : 0));
+          });
       }
-    } catch {
-      setFormError("Failed to submit prescription");
+    } catch (error) {
+      alert("Failed to submit prescription");
     }
   }
   // --- END CUSTOMER UPLOAD LOGIC ---
@@ -233,7 +187,7 @@ export default function UploadPrescriptionPage() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       if (!file.type.startsWith("image/")) {
-        setFormError("Only image files are allowed!");
+        alert("Only image files are allowed!");
         e.target.value = "";
         return;
       }
@@ -259,7 +213,6 @@ export default function UploadPrescriptionPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">Loading prescriptions...</div>
-        <Footer />
       </div>
     );
   }
@@ -267,10 +220,10 @@ export default function UploadPrescriptionPage() {
   if (!user) {
     return (
       <div className="w-full flex justify-end p-4 border-b bg-white">
+        <NavbarAuthButton />
         <div className="flex justify-center items-center h-96 w-full">
           <div className="text-xl">Please sign in to access this page.</div>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -278,44 +231,61 @@ export default function UploadPrescriptionPage() {
 
   return (
     <div>
+      <div className="flex items-center justify-end gap-4 p-4 border-b bg-white">
+        <NavbarAuthButton />
+      </div>
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Upload Prescription</h1>
 
-        {/* Only show Customer view for customers */}
+        {/* Customer View */}
         {user.role === "customer" && (
           <div className="space-y-6">
+            {/* Submit Prescription Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Submit Prescription</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Display customer info */}
-                {customerInfo && (
-                  <div className="mb-4 p-3 rounded bg-gray-50 border">
-                    <div className="font-semibold mb-1">Account Information</div>
-                    <div>Name: {customerInfo.name || "N/A"}</div>
-                    <div>Email: {customerInfo.email || "N/A"}</div>
-                    <div>Address: {customerInfo.address || "N/A"}</div>
-                    <div>Phone: {customerInfo.phoneNumber || "N/A"}</div>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="patientName">Patient Name</Label>
+                    <Input
+                      id="patientName"
+                      placeholder="Enter full name"
+                      value={formData.patientName}
+                      onChange={(e) => setFormData({ ...formData, patientName: e.target.value })}
+                    />
                   </div>
-                )}
-=======
-                <div>
-                  <Label htmlFor="image">Prescription Image</Label>
-                  <Input
-                    id="image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                  />
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      placeholder="e.g., 0912345678"
+                      type="tel"
+                      value={formData.phoneNumber}
+                      onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="image">Prescription Image</Label>
+                    <Input
+                      id="image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                    />
+                  </div>
                 </div>
-                {formError && <div className="text-red-500">{formError}</div>}
-                <Button onClick={handleUpload} className="w-full bg-orange-500 hover:bg-orange-600 text-white">
+                <Button
+                  onClick={handleUpload}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white mt-4"
+                >
                   <UploadCloud className="w-4 h-4 mr-2" /> Submit Prescription
                 </Button>
               </CardContent>
             </Card>
-            {/* Customer Prescription History */}
+
+            {/* Prescription History */}
             <div className="grid gap-4">
               <h2 className="text-xl font-semibold">Your Prescriptions</h2>
               {isLoading ? (
@@ -327,104 +297,89 @@ export default function UploadPrescriptionPage() {
                   <CardContent className="p-6 text-center">No prescriptions found.</CardContent>
                 </Card>
               ) : (
-                <>
-                  {customerPrescriptions.map((prescription) => {
-                    const status = getStatus(prescription.approved)
-                    return (
-                      <Card key={prescription.prescriptionId} className="border rounded-lg mb-4">
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                {getStatusIcon(status)}
-                                <Badge className={getStatusColor(status)}>
-                                  {status.toUpperCase()}
-                                </Badge>
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                Prescription #{prescription.prescriptionId}
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                {prescription.patientName && <>Patient: {prescription.patientName}</>}
-                                {prescription.patientPhoneNumber && <> | Phone: {prescription.patientPhoneNumber}</>}
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                Upload Date: {prescription.uploadDate ? new Date(prescription.uploadDate).toLocaleDateString() : ""}
-                              </div>
-                              {/* Show customer info for each prescription */}
-                              {prescription.customerInfo && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                  Uploaded By: {prescription.customerInfo.name || "N/A"}
-                                  {prescription.customerInfo.email && <> | {prescription.customerInfo.email}</>}
-                                  {prescription.customerInfo.address && <> | {prescription.customerInfo.address}</>}
-                                  {prescription.customerInfo.phoneNumber && <> | {prescription.customerInfo.phoneNumber}</>}
-                                </div>
-                              )}
+                customerPrescriptions.map((prescription, idx) => {
+                  const status = getStatus(prescription.approved)
+                  return (
+                    <Card key={prescription.prescriptionId ?? `temp-${idx}`} className="border rounded-lg mb-4">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              {getStatusIcon(status)}
+                              <Badge className={getStatusColor(status)}>
+                                {status.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Prescription #{prescription.prescriptionId}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {prescription.patientName && <>Patient: {prescription.patientName}</>}
+                              {prescription.patientPhoneNumber && <> | Phone: {prescription.patientPhoneNumber}</>}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              Upload Date: {prescription.uploadDate ? new Date(prescription.uploadDate).toLocaleDateString() : ""}
                             </div>
                           </div>
-                          <div className="mb-2">
-                            {prescription.imageFile && (
-                              <span className="text-sm">
-                                <strong>Image:</strong>{" "}
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  className="text-blue-500 hover:underline p-0 h-auto"
-                                  onClick={() => setSelectedPrescription(prescription)}
-                                >
-                                  View Prescription
-                                </Button>
-                              </span>
-                            )}
+                  
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {prescription.imageFile && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-500 hover:underline"
+                              onClick={() => setSelectedPrescription(prescription)}
+                            >
+                              View Prescription
+                            </Button>
+                          )}
+                        </div>
+                        {status === "approved" && (
+                          <div className="mt-4 p-3 rounded bg-green-50 text-green-800 text-sm">
+                            Your prescription has been approved. You can now order the medications.
                           </div>
-                          {status === "approved" && (
-                            <div className="mt-4 p-3 rounded bg-green-50 text-green-800 text-sm">
-                              Your prescription has been approved. You can now order the medications.
-                            </div>
-                          )}
-                          {status === "rejected" && (
-                            <div className="mt-4 p-3 rounded bg-red-50 text-red-800 text-sm">
-                              Your prescription has been rejected. Please contact us for more information.
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                  {/* Pagination controls */}
-                  <div className="flex justify-center items-center gap-2 mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
-                      disabled={page === 1}
-                      onClick={() => setPage(page - 1)}
-                    >
-                      Previous
-                    </Button>
-                    <span>
-                      Page {page} of {Math.ceil(total / pageSize) || 1}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
-                      disabled={page * pageSize >= total}
-                      onClick={() => setPage(page + 1)}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </>
+                        )}
+                        {status === "rejected" && (
+                          <div className="mt-4 p-3 rounded bg-red-50 text-red-800 text-sm">
+                            Your prescription has been rejected. Please contact us for more information.
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )
+                })
               )}
+              {/* Pagination controls */}
+              <div className="flex justify-center items-center gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  Previous
+                </Button>
+                <span>
+                  Page {page} of {Math.ceil(total / pageSize) || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page * pageSize >= total}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Only show Staff view for pharmacists */}
+        {/* Staff View */}
         {user.role === "pharmacist" && (
           <div className="space-y-6">
-            {/* --- Staff View Content --- */}
+            {/* Filter Section */}
             <Card>
               <CardContent className="py-4">
                 <div className="flex flex-wrap gap-8 items-center">
@@ -473,8 +428,8 @@ export default function UploadPrescriptionPage() {
                 </div>
               </CardContent>
             </Card>
-            {/* --- End Filter Section --- */}
 
+            {/* Status Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <Card>
                 <CardContent className="p-6">
@@ -489,7 +444,6 @@ export default function UploadPrescriptionPage() {
                   </div>
                 </CardContent>
               </Card>
-
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -503,7 +457,6 @@ export default function UploadPrescriptionPage() {
                   </div>
                 </CardContent>
               </Card>
-
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
@@ -519,6 +472,7 @@ export default function UploadPrescriptionPage() {
               </Card>
             </div>
 
+            {/* All Prescriptions List */}
             <div className="grid gap-4">
               <h2 className="text-xl font-semibold">All Prescriptions</h2>
               {isLoading ? (
@@ -557,34 +511,19 @@ export default function UploadPrescriptionPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="mb-2">
-                          {prescription.imageFile && (
-                            <span className="text-sm">
-                              <strong>Image:</strong>{" "}
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="text-blue-500 hover:underline p-0 h-auto"
-                                onClick={() => setSelectedPrescription(prescription)}
-                              >
-                                View Prescription
-                              </Button>
-                            </span>
-                          )}
-                        </div>
                         <div className="flex flex-wrap gap-2 mt-2">
                           {status === "pending" && (
                             <>
                               <Button
                                 size="sm"
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                className="bg-blue-500 hover:bg-blue-600 text-white"
                                 onClick={() => handleUpdateStatus(prescription.prescriptionId, true)}
                               >
                                 Approve
                               </Button>
                               <Button
                                 size="sm"
-                                className="bg-red-600 hover:bg-red-700 text-white"
+                                className="bg-red-500 hover:bg-red-600 text-white"
                                 onClick={() => handleUpdateStatus(prescription.prescriptionId, false)}
                               >
                                 Reject
@@ -594,7 +533,6 @@ export default function UploadPrescriptionPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
                             onClick={() => setSelectedPrescription(prescription)}
                           >
                             View Details
@@ -605,31 +543,28 @@ export default function UploadPrescriptionPage() {
                   )
                 })
               )}
-            </div>
-
-            {/* Pagination Controls */}
-            <div className="flex justify-center items-center gap-2 mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
-                disabled={page === 1}
-                onClick={() => setPage(page - 1)}
-              >
-                Previous
-              </Button>
-              <span>
-                Page {page} of {Math.ceil(total / pageSize) || 1}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200"
-                disabled={page * pageSize >= total}
-                onClick={() => setPage(page + 1)}
-              >
-                Next
-              </Button>
+              {/* Pagination Controls */}
+              <div className="flex justify-center items-center gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  Previous
+                </Button>
+                <span>
+                  Page {page} of {Math.ceil(total / pageSize) || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page * pageSize >= total}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -637,38 +572,9 @@ export default function UploadPrescriptionPage() {
         {/* Prescription Details Modal */}
         {selectedPrescription && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded shadow-lg min-w-[300px] max-w-lg relative">
-              {/* X button to close modal */}
-              <button
-                className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-2xl"
-                onClick={() => setSelectedPrescription(null)}
-                aria-label="Close"
-              >
-                ×
-              </button>
+            <div className="bg-white p-6 rounded shadow-lg min-w-[300px] max-w-lg">
               <h2 className="text-lg font-bold mb-2">Prescription Details</h2>
               <p><strong>ID:</strong> {selectedPrescription.prescriptionId}</p>
-              <p>
-                <strong>Customer ID:</strong> {selectedPrescription.customerId ?? "N/A"}
-              </p>
-              {/* Show customer info in modal */}
-              {selectedPrescription.customerInfo && (
-                <div className="mb-2 text-xs text-gray-600">
-                  <strong>Name:</strong> {selectedPrescription.customerInfo.name || "N/A"}
-                  {selectedPrescription.customerInfo.dateOfBirth && (
-                    <> | <strong>DOB:</strong> {new Date(selectedPrescription.customerInfo.dateOfBirth).toLocaleDateString()}</>
-                  )}
-                  {selectedPrescription.customerInfo.email && (
-                    <> | <strong>Email:</strong> {selectedPrescription.customerInfo.email}</>
-                  )}
-                  {selectedPrescription.customerInfo.address && (
-                    <> | <strong>Address:</strong> {selectedPrescription.customerInfo.address}</>
-                  )}
-                  {selectedPrescription.customerInfo.phoneNumber && (
-                    <> | <strong>Phone:</strong> {selectedPrescription.customerInfo.phoneNumber}</>
-                  )}
-                </div>
-              )}
               <p>
                 <strong>Upload Date:</strong>{" "}
                 {selectedPrescription.uploadDate
@@ -696,11 +602,16 @@ export default function UploadPrescriptionPage() {
                     </a>
                   ))}
               </div>
+              <button
+                className="mt-4 px-4 py-2 bg-gray-200 rounded"
+                onClick={() => setSelectedPrescription(null)}
+              >
+                Close
+              </button>
             </div>
           </div>
         )}
       </div>
-      <Footer />
     </div>
   )
 }

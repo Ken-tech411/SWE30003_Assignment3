@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from "@/components/ui/button"
 import { AnimatedSection } from "@/components/animated-section"
 import { Package } from "lucide-react"
+import { useAuth } from '@/context/AuthContext'
 
 interface Product {
   productId: string;
@@ -16,6 +17,7 @@ interface Product {
 }
 
 export default function BestSellingProducts() {
+  const { user } = useAuth();
   console.log('🎯 BestSellingProducts component is rendering!');
   console.log('🎯 Component mounted at:', new Date().toISOString());
   
@@ -184,6 +186,40 @@ export default function BestSellingProducts() {
     }
   };
 
+  // Add to cart functionality
+  const addToCart = async (productId: string, requiresPrescription: boolean) => {
+    if (!user || !user.customerId) {
+      alert("Please sign in to add products to your cart.");
+      return;
+    }
+
+    if (requiresPrescription) {
+      alert("You need an approved prescription to buy this product.");
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: user.customerId,
+          productId,
+          quantity: 1
+        })
+      });
+
+      if (response.ok) {
+        alert("Added to cart!");
+      } else {
+        const data = await response.json();
+        alert(data.error || "Failed to add to cart.");
+      }
+    } catch {
+      alert("Failed to add to cart.");
+    }
+  };
+
   return (
     <AnimatedSection className="bg-gradient-to-br from-blue-500 via-blue-400 to-blue-600 py-16">
       <div className="container mx-auto px-4">
@@ -205,7 +241,7 @@ export default function BestSellingProducts() {
           </div>
         )}
 
-        {/* Products Grid - Cleaned up */}
+        {/* Products Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.slice(0, 8).map((product, index) => (
             <AnimatedSection key={product.productId} delay={400 + index * 100}>
@@ -239,15 +275,18 @@ export default function BestSellingProducts() {
                   </span>
                 </div>
 
-                {/* Prescription Status */}
-                {product.requiresPrescription && (
-                  <div className="mb-3">
+                {/* Prescription Status - Fixed height container */}
+                <div className="mb-3 h-5">
+                  {product.requiresPrescription ? (
                     <span className="text-xs text-red-600 font-medium">Prescription Required</span>
-                  </div>
-                )}
+                  ) : null}
+                </div>
                 
                 {/* Add to Cart Button */}
-                <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
+                <Button 
+                  onClick={() => addToCart(product.productId, product.requiresPrescription)}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+                >
                   Add to Cart
                 </Button>
               </div>

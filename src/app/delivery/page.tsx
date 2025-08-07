@@ -263,7 +263,6 @@ export default function DeliveryPage() {
         <div className="flex justify-center items-center h-96 w-full">
           <div className="text-xl">Please sign in to access this page.</div>
         </div>
-        <Footer />
       </div>
     );
   }

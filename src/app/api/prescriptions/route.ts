@@ -17,17 +17,16 @@ export async function GET(request: Request) {
       request.headers.get('authorization') ||
       cookieStore.get('sessionToken')?.value;
 
-    let user: { role: string; linkedId: number } | null = null;
+    let user: any = null;
     if (sessionToken) {
-      const sessions = await pool.query(
+      const [sessions] = await pool.query(
         `SELECT u.userId, u.username, u.role, u.linkedId
          FROM UserSession s
          JOIN UserAccount u ON s.userId = u.userId
          WHERE s.sessionToken = ? AND s.isActive = 1`,
         [sessionToken]
-      ) as unknown[];
-      const sessionArray = sessions as { role: string; linkedId: number }[];
-      user = sessionArray[0] || null;
+      ) as any[];
+      user = sessions[0] || null;
     }
 
     const statuses = searchParams.getAll('status'); // e.g. ["approved", "pending"]
@@ -36,8 +35,8 @@ export async function GET(request: Request) {
     const customerId = searchParams.get('customerId');
 
     // Build WHERE clause
-    const where: string[] = [];
-    const params: unknown[] = [];
+    let where: string[] = [];
+    let params: any[] = [];
 
     if (statuses.length) {
       const statusConds = statuses.map(status => {
@@ -71,89 +70,43 @@ export async function GET(request: Request) {
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     // Get total count for filtered set
-    const totalResult = await pool.query(
+    const [totalRows] = await pool.query(
       `SELECT COUNT(*) as total
        FROM Prescription p
-       LEFT JOIN Customer c ON p.customerId = c.customerId
+       LEFT JOIN \`Order\` o ON p.prescriptionId = o.prescriptionId
+       LEFT JOIN Customer c ON o.customerId = c.customerId
        ${whereClause}`,
       params
-    ) as unknown[];
-    const totalRows = totalResult as { total: number }[];
+    ) as any[];
     const total = totalRows[0]?.total || 0;
 
     // Get paginated filtered data
-    const rowsResult = await pool.query(
+    const [rows] = await pool.query(
       `SELECT 
         p.prescriptionId,
         p.imageFile,
         p.uploadDate,
         p.approved,
         p.pharmacistId,
-        p.customerId,
-        c.name AS customerName,
-        c.email AS customerEmail,
-        c.address AS customerAddress,
-        c.phoneNumber AS customerPhoneNumber,
-        c.dateOfBirth AS customerDateOfBirth,
-        c.gender AS customerGender,
-        c.name AS patientName,
-        c.phoneNumber AS patientPhoneNumber
+        p.customerId
       FROM Prescription p
-      LEFT JOIN Customer c ON p.customerId = c.customerId
       ${whereClause}
       ORDER BY p.uploadDate DESC
       LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
-    ) as unknown[];
-    const rows = rowsResult as {
-      prescriptionId: number;
-      imageFile: string;
-      uploadDate: string;
-      approved: boolean;
-      pharmacistId: number;
-      customerId: number;
-      customerName: string;
-      customerEmail: string;
-      customerAddress: string;
-      customerPhoneNumber: string;
-      customerDateOfBirth: string;
-      customerGender: string;
-      patientName: string;
-      patientPhoneNumber: string;
-    }[];
-
-    // Map customer info into a nested object for each prescription
-    const data = rows.map((row) => ({
-      prescriptionId: row.prescriptionId,
-      imageFile: row.imageFile,
-      uploadDate: row.uploadDate,
-      approved: row.approved,
-      pharmacistId: row.pharmacistId,
-      customerId: row.customerId,
-      patientName: row.patientName,
-      patientPhoneNumber: row.patientPhoneNumber,
-      customerInfo: {
-        name: row.customerName,
-        email: row.customerEmail,
-        address: row.customerAddress,
-        phoneNumber: row.customerPhoneNumber,
-        dateOfBirth: row.customerDateOfBirth,
-        gender: row.customerGender,
-      }
-    }));
+    ) as any[];
 
     // Get status counts (for all data, not just filtered)
-    const statusCountsResult = await pool.query(
+    const [statusCountsRows] = await pool.query(
       `SELECT 
         SUM(CASE WHEN p.approved IS NULL THEN 1 ELSE 0 END) as pending,
         SUM(CASE WHEN p.approved = 1 THEN 1 ELSE 0 END) as approved,
         SUM(CASE WHEN p.approved = 0 THEN 1 ELSE 0 END) as rejected
       FROM Prescription p`
-    ) as unknown[];
-    const statusCountsRows = statusCountsResult as { pending: number; approved: number; rejected: number }[];
+    ) as any[];
     const statusCounts = statusCountsRows[0] || { pending: 0, approved: 0, rejected: 0 };
 
-    return NextResponse.json({ data, total, statusCounts });
+    return NextResponse.json({ data: rows, total, statusCounts });
   } catch (error) {
     console.error('Database error:', error);
     return NextResponse.json({ error: 'Failed to fetch prescriptions' }, { status: 500 });
@@ -176,16 +129,15 @@ export async function POST(request: Request) {
       await writeFile(path.join(uploadDir, imageFileName), buffer);
     }
 
-    // Insert with customerId only - patient info comes from Customer table
-    const result = await pool.query(
+    // Insert with customerId
+    const [result]: any = await pool.query(
       `INSERT INTO Prescription (imageFile, uploadDate, approved, pharmacistId, customerId) 
        VALUES (?, NOW(), NULL, NULL, ?)`,
       [imageFileName, customerId]
-    ) as unknown;
-    const insertResult = result as { insertId: number };
+    );
 
     return NextResponse.json(
-      { success: true, prescriptionId: insertResult.insertId },
+      { success: true, prescriptionId: result.insertId },
       { status: 201 }
     );
   } catch (error) {
