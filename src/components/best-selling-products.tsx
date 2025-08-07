@@ -186,13 +186,14 @@ export default function BestSellingProducts() {
     }
   };
 
-  // Add to cart functionality
+  // Add the cart functionality from products page
   const addToCart = async (productId: string, requiresPrescription: boolean) => {
     if (!user || !user.customerId) {
       alert("Please sign in to add products to your cart.");
       return;
     }
 
+    // Check if product requires prescription
     if (requiresPrescription) {
       alert("You need an approved prescription to buy this product.");
       return;
@@ -241,9 +242,12 @@ export default function BestSellingProducts() {
           </div>
         )}
 
-        {/* Products Grid */}
+        {/* Products Grid - Filter out prescription products */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.slice(0, 8).map((product, index) => (
+          {products
+            .filter(product => !product.requiresPrescription)
+            .slice(0, 8)
+            .map((product, index) => (
             <AnimatedSection key={product.productId} delay={400 + index * 100}>
               <div className="bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-shadow">
                 {/* Product Image */}

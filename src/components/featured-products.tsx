@@ -175,20 +175,23 @@ export default function FeaturedProducts() {
     let filtered: Product[] = [];
 
     if (activeCategory === 'all') {
-      // Shuffle and take 8 random products
-      const shuffled = [...products].sort(() => 0.5 - Math.random());
+      // Filter out prescription products, shuffle and take 8 random products
+      const nonPrescriptionProducts = products.filter(product => !product.requiresPrescription);
+      const shuffled = [...nonPrescriptionProducts].sort(() => 0.5 - Math.random());
       filtered = shuffled.slice(0, 8);
-      console.log('🔀 Shuffled all products:', filtered.length);
+      console.log('🔀 Shuffled non-prescription products:', filtered.length);
     } else {
-      // Filter by category and take up to 8
+      // Filter by category AND exclude prescription products, take up to 8
       filtered = products
         .filter(product => {
-          const matches = product.category.toLowerCase() === activeCategory.toLowerCase();
-          console.log(`🔍 Product "${product.name}" category "${product.category}" matches "${activeCategory}":`, matches);
+          const matchesCategory = product.category.toLowerCase() === activeCategory.toLowerCase();
+          const notPrescription = !product.requiresPrescription;
+          const matches = matchesCategory && notPrescription;
+          console.log(`🔍 Product "${product.name}" category "${product.category}" matches "${activeCategory}" and not prescription:`, matches);
           return matches;
         })
         .slice(0, 8);
-      console.log(`🎯 Filtered ${activeCategory} products:`, filtered.length);
+      console.log(`🎯 Filtered ${activeCategory} non-prescription products:`, filtered.length);
     }
 
     setFilteredProducts(filtered);
@@ -293,7 +296,7 @@ export default function FeaturedProducts() {
           </div>
         )}
 
-        {/* Products Grid */}
+        {/* Products Grid - Ensure no extra content */}
         {!loading && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {filteredProducts.map((product, index) => (
@@ -362,7 +365,7 @@ export default function FeaturedProducts() {
           </div>
         )}
 
-        {/* View All Products Button */}
+        {/* View All Products Button - Remove authentication requirement */}
         {!loading && filteredProducts.length > 0 && (
           <AnimatedSection delay={1400}>
             <div className="text-center">

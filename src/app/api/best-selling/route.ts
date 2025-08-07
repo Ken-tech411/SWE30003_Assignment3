@@ -17,6 +17,7 @@ export async function GET(request: Request) {
         category, 
         requiresPrescription
       FROM Product 
+      WHERE requiresPrescription = 0
       ORDER BY name ASC
       LIMIT 8
     `);

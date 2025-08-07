@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db'; // pool is your db connection
 
+// Define a type for a return row for type safety
+type ReturnRow = {
+  returnId: number;
+  orderId: number;
+  productId: number;
+  reason: string;
+  description: string;
+  status: string;
+  refundAmount: number;
+  submittedDate: string;
+  processedDate?: string;
+  customerId: number;
+  customerName: string;
+  productName: string;
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -56,7 +72,7 @@ export async function GET(request: NextRequest) {
       ORDER BY r.submittedDate DESC
       LIMIT ? OFFSET ?`,
       [...params, pageSize, offset]
-    ) as unknown as Array<any>;
+    ) as unknown as ReturnRow[];
 
     // --- Get stats for the whole Return table (not paginated/filtered) ---
     const [statsRows] = await pool.query(
